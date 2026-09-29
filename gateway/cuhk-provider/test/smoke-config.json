@@ -1,0 +1,6 @@
+{
+  "consultationEnabled": false,
+  "gatewayEnabled": true,
+  "model": "gpt5.6sol",
+  "thinking": "low"
+}

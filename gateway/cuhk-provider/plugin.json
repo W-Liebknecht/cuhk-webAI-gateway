@@ -1,0 +1,8 @@
+{
+  "id": "cuhk-ai-provider",
+  "name": "CUHK AI Provider",
+  "module": "index.cjs",
+  "surfaces": ["gateway", "provider"],
+  "permissions": ["trusted-code", "gateway-routes", "http-backends"],
+  "description": "OpenAI Responses bridge backed by the authenticated CUHK web AI session"
+}

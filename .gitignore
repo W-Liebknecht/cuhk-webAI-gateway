@@ -1,0 +1,29 @@
+# Local configuration and generated state
+config.json
+gateway/runtime-state/
+gateway/host-state/
+
+# External dependencies and research checkouts
+node_modules/
+research/claude-code-router/
+cuhk-ai-opencli/
+
+# Python / Node caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+coverage/
+
+# Logs, temporary files, and editor state
+*.log
+*.tmp
+.env
+.env.*
+!.env.example
+.vscode/
+.idea/
+Thumbs.db
+Desktop.ini
+.DS_Store
+

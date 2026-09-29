@@ -1,0 +1,6 @@
+interface:
+  display_name: "CUHK Web AI"
+  short_description: "Use the locally configured CUHK school web AI"
+  default_prompt: "Use $cuhk-ai to consult the configured school web AI for this task."
+policy:
+  allow_implicit_invocation: true

@@ -1,0 +1,4 @@
+We are continuing a CUHK Gateway integration test. The next request will declare one function tool named echo with required string argument value. Reply with exactly one standalone TOOL PROTOCOL v1 envelope and no Markdown:
+<tool_call>
+{"name":"echo","arguments":{"value":"school-tool-loop"}}
+</tool_call>

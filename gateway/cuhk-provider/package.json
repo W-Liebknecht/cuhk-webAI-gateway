@@ -1,0 +1,15 @@
+{
+  "name": "@cuhk-ai/ccr-provider",
+  "version": "0.1.0",
+  "private": true,
+  "description": "CCR wrapper plugin for the CUHK web AI OpenAI Responses bridge",
+  "type": "commonjs",
+  "main": "index.cjs",
+  "scripts": {
+    "test": "node --test test/*.test.cjs",
+    "check": "node --check index.cjs && node --check src/runtime.cjs && node --check src/protocol.cjs && node --check src/decision-protocol.cjs && node --check src/transport.cjs && node --check src/model-profiles.cjs"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
