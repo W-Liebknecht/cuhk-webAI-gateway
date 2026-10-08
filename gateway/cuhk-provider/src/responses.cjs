@@ -84,7 +84,22 @@ function parseInput(input) {
   return { history, result: results.length ? results[results.length - 1] : null, allResults, additionalTools };
 }
 
-function createTextResponse({ model, text, responseId = id("resp") }) {
+function responseUsage(contextUsage) {
+  if (!contextUsage || !Number.isFinite(contextUsage.usedPercent)) return null;
+  // Codex derives its footer's context-left percentage from Responses usage.
+  // The school UI exposes a percentage rather than an exact token count, so a
+  // fixed scale preserves the ratio without pretending to know model tokens.
+  const inputTokens = Math.max(0, Math.min(100000, Math.round(contextUsage.usedPercent * 1000)));
+  return {
+    input_tokens: inputTokens,
+    input_tokens_details: { cached_tokens: 0 },
+    output_tokens: 0,
+    output_tokens_details: { reasoning_tokens: 0 },
+    total_tokens: inputTokens
+  };
+}
+
+function createTextResponse({ model, text, contextUsage = null, responseId = id("resp") }) {
   return {
     id: responseId,
     object: "response",
@@ -99,11 +114,11 @@ function createTextResponse({ model, text, responseId = id("resp") }) {
       content: [{ type: "output_text", text, annotations: [] }]
     }],
     parallel_tool_calls: false,
-    usage: null
+    usage: responseUsage(contextUsage)
   };
 }
 
-function createToolResponse({ model, callId, tool, argumentsJson, argumentsValue, responseId = id("resp") }) {
+function createToolResponse({ model, callId, tool, argumentsJson, argumentsValue, contextUsage = null, responseId = id("resp") }) {
   const namespace = tool.namespace ? { namespace: tool.namespace } : {};
   const output = tool.clientType === "code_mode_exec"
     ? [{ type: "custom_tool_call", id: id("ctc"), call_id: callId, name: tool.clientName, input: codeModeInput(tool.operation, argumentsValue), ...namespace }]
@@ -118,7 +133,7 @@ function createToolResponse({ model, callId, tool, argumentsJson, argumentsValue
     model,
     output,
     parallel_tool_calls: false,
-    usage: null
+    usage: responseUsage(contextUsage)
   };
 }
 
@@ -171,4 +186,4 @@ function responseEvents(response) {
   return sequence;
 }
 
-module.exports = { createTextResponse, createToolResponse, id, parseInput, responseEvents };
+module.exports = { createTextResponse, createToolResponse, id, parseInput, responseEvents, responseUsage };

@@ -6,9 +6,9 @@ The proposed multi-tab concurrency extension is specified in [multi-tab-parallel
 
 ## Goal
 
-Provide one local CUHK Gateway that lets Codex, Claude Code, and other compatible agents use the authenticated school web AI as their primary model path. The settings panel independently controls Gateway availability and optional secondary consultation, while both paths share the selected school model and thinking level. CC Switch may point supported clients at the gateway without owning any CUHK-specific logic.
+Provide one local CUHK Gateway that lets Codex, Claude Code, and other compatible agents use the authenticated school web AI as their primary model path. The settings panel controls Gateway availability, selected school model, and thinking level. CC Switch may point supported clients at the gateway without owning any CUHK-specific logic.
 
-The long-term target is to avoid using Codex model quota when an external agent client is connected directly to this gateway. Calling the existing `$cuhk-ai` skill from inside Codex remains a secondary-consultant workflow and does not meet that target.
+The target is to avoid using Codex model quota when an external agent client is connected directly to this gateway.
 
 ## Component boundaries
 
@@ -39,7 +39,7 @@ ai.cuhk.edu.cn
 
 Responsibilities:
 
-- Settings panel: separate `gatewayEnabled` and `consultationEnabled` switches, shared model choice and thinking level, and later tool mode. Enabling the Gateway must never authorize an automatic secondary consultation. The panel does not edit Codex or Claude Code configuration.
+- Settings panel: the `gatewayEnabled` switch, shared model choice and thinking level, and later tool mode. The panel does not edit Codex or Claude Code configuration.
 - CC Switch: optional client routing, provider switching, and protocol conversion. It does not manage the school login, browser session, or CUHK model catalog.
 - CCR Gateway: supplies the local HTTP API, Codex/Claude Code client integration, routing, model catalog, protocol surfaces, plugin lifecycle, and the existing Codex `apply_patch` bridge.
 - CUHK provider extension: owns CUHK request/response translation, the constrained text tool protocol, catalog compilation, validation, session mapping, and provider-specific errors.
@@ -61,7 +61,7 @@ The server must bind to loopback by default. Browser credentials, cookies, CSRF 
 
 ## Configuration ownership
 
-The CCR CUHK extension, panel, and existing agent wrapper share `config.json` during migration. `gatewayEnabled` is consumed only by the Gateway; `consultationEnabled` is consumed only by the secondary-consultant wrapper and global routing rules. The extension or CCR integration should eventually own a versioned configuration schema and expose atomic updates through `/api/config`.
+The CCR CUHK extension and panel share `config.json`. `gatewayEnabled` is consumed by the Gateway. The extension or CCR integration should eventually own a versioned configuration schema and expose atomic updates through `/api/config`.
 
 Required modes:
 

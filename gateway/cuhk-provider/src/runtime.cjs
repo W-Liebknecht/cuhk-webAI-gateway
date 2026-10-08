@@ -484,6 +484,7 @@ class CuhkProviderRuntime {
     }
     session.busySince = null;
     session.conversationUrl = upstream.conversationId || session.conversationUrl;
+    if (upstream.contextUsage) session.contextUsage = upstream.contextUsage;
     if (session.conversationUrl) this.recordConversation(session.conversationKey, { conversationUrl: session.conversationUrl });
     if (requestState.aborted === true || session.ownerDisconnected) {
       // Codex was interrupted (Ctrl+C). The answer was never delivered, so this
@@ -576,7 +577,7 @@ class CuhkProviderRuntime {
         });
       }
       this.finishSession(session);
-      return createTextResponse({ model: session.model, text: decision.answer });
+      return createTextResponse({ model: session.model, text: decision.answer, contextUsage: session.contextUsage });
     }
 
     const toolsAllowed = session.toolChoice.mode !== "none";
@@ -592,7 +593,7 @@ class CuhkProviderRuntime {
       );
     }
     this.finishSession(session);
-    return createTextResponse({ model: session.model, text: upstream.text });
+    return createTextResponse({ model: session.model, text: upstream.text, contextUsage: session.contextUsage });
   }
 
   requestArbitration(session, reason, detail, config, requestState = {}) {
@@ -634,7 +635,8 @@ class CuhkProviderRuntime {
       callId,
       tool,
       argumentsJson: argumentJson,
-      argumentsValue
+      argumentsValue,
+      contextUsage: session.contextUsage
     });
   }
 

@@ -1,7 +1,35 @@
 import { describe, it, expect, vi } from 'vitest';
 import { JSDOM } from 'jsdom';
 import { EmptyResultError } from './_opencli.js';
-import { getVisibleMessages, resolveModel, resolveThinking, setThinking, startFreshConversation, stopActiveGeneration, uploadImages, waitForResponse } from './utils.js';
+import { getContextUsage, getVisibleMessages, resolveModel, resolveThinking, setThinking, startFreshConversation, stopActiveGeneration, uploadImages, waitForResponse } from './utils.js';
+
+describe('CUHK AI context usage', () => {
+    it('reads the localized context ring and returns the remaining percentage', async () => {
+        const dom = new JSDOM(`
+            <div data-testid="chat-input-body">
+              <div aria-label="上下文窗口: 22%">
+                <svg><circle stroke-dasharray="13.816 62.8"></circle></svg>
+              </div>
+            </div>
+        `, { runScripts: 'outside-only' });
+        try {
+            const usage = await getContextUsage({ evaluate: async source => dom.window.eval(source) });
+            expect(usage).toEqual({ usedPercent: 22, remainingPercent: 78, truncated: false });
+        } finally { dom.window.close(); }
+    });
+
+    it('falls back to the ring geometry when the accessible label is absent', async () => {
+        const dom = new JSDOM(`
+            <div data-testid="chat-input-body">
+              <div><svg><circle stroke-dasharray="31.4 62.8"></circle></svg></div>
+            </div>
+        `, { runScripts: 'outside-only' });
+        try {
+            const usage = await getContextUsage({ evaluate: async source => dom.window.eval(source) });
+            expect(usage).toMatchObject({ usedPercent: 50, remainingPercent: 50 });
+        } finally { dom.window.close(); }
+    });
+});
 
 describe('CUHK AI conversation identity', () => {
     it('clicks New Chat and verifies a blank base conversation', async () => {

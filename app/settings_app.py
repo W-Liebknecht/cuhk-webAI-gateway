@@ -40,7 +40,6 @@ THINKING_LABELS = {
 
 def default_config() -> dict[str, object]:
     return {
-        "consultationEnabled": False,
         "gatewayEnabled": True,
         "model": "glm5.3flash",
         "thinking": "low",
@@ -53,7 +52,6 @@ def normalize_config(value: object) -> dict[str, object]:
     config = default_config()
     config.update(source)
     legacy_enabled = bool(source.get("enabled", True))
-    consultation_enabled = bool(source.get("consultationEnabled", legacy_enabled))
     gateway_enabled = bool(source.get("gatewayEnabled", legacy_enabled))
     model = str(config.get("model", ""))
     if model not in MODELS:
@@ -68,7 +66,6 @@ def normalize_config(value: object) -> dict[str, object]:
     elif thinking not in levels:
         thinking = levels[0]
     return {
-        "consultationEnabled": consultation_enabled,
         "gatewayEnabled": gateway_enabled,
         "model": model,
         "thinking": thinking,
@@ -94,7 +91,7 @@ class SettingsApp:
     def __init__(self, root: tk.Tk) -> None:
         self.root = root
         self.root.title("CUHK AI 控制面板")
-        self.root.geometry("520x460")
+        self.root.geometry("520x410")
         self.root.resizable(False, False)
 
         style = ttk.Style(root)
@@ -104,7 +101,6 @@ class SettingsApp:
         style.configure("Status.TLabel", foreground="#2563eb")
 
         self.config = load_config()
-        self.consultation_enabled = tk.BooleanVar(value=bool(self.config["consultationEnabled"]))
         self.gateway_enabled = tk.BooleanVar(value=bool(self.config["gatewayEnabled"]))
         self.model_label = tk.StringVar(value=MODELS[str(self.config["model"])]["label"])
         self.thinking_label = tk.StringVar()
@@ -114,14 +110,7 @@ class SettingsApp:
         frame = ttk.Frame(root, padding=24)
         frame.pack(fill="both", expand=True)
         ttk.Label(frame, text="CUHK AI 控制面板", style="Title.TLabel").pack(anchor="w")
-        ttk.Label(frame, text="咨询与 Gateway 独立开关，共享下方模型设置。").pack(anchor="w", pady=(4, 18))
-
-        ttk.Checkbutton(
-            frame,
-            text="自动咨询学校网页 AI",
-            variable=self.consultation_enabled,
-            command=self._changed,
-        ).pack(anchor="w", pady=(0, 8))
+        ttk.Label(frame, text="Gateway 使用下方模型与思考强度设置。").pack(anchor="w", pady=(4, 18))
 
         ttk.Checkbutton(
             frame,
@@ -180,18 +169,15 @@ class SettingsApp:
             self.thinking_label.set("/")
             return
         labels = [THINKING_LABELS[level] for level in levels]
-        self.thinking_box.configure(values=labels, state="readonly" if self._web_ai_enabled() else "disabled")
+        self.thinking_box.configure(values=labels, state="readonly" if self.gateway_enabled.get() else "disabled")
         current = self.config.get("thinking") if self.config.get("model") == model else None
         self.thinking_label.set(THINKING_LABELS.get(str(current), labels[0]))
 
     def _refresh_enabled_state(self) -> None:
-        state = "readonly" if self._web_ai_enabled() else "disabled"
+        state = "readonly" if self.gateway_enabled.get() else "disabled"
         self.model_box.configure(state=state)
         if MODELS[self._selected_model()]["thinking"]:
             self.thinking_box.configure(state=state)
-
-    def _web_ai_enabled(self) -> bool:
-        return self.consultation_enabled.get() or self.gateway_enabled.get()
 
     def _model_changed(self, _event: object = None) -> None:
         self.config["model"] = self._selected_model()
@@ -208,7 +194,6 @@ class SettingsApp:
         reverse = {label: key for key, label in THINKING_LABELS.items()}
         thinking = reverse.get(self.thinking_label.get()) if MODELS[model]["thinking"] else None
         return {
-            "consultationEnabled": self.consultation_enabled.get(),
             "gatewayEnabled": self.gateway_enabled.get(),
             "model": model,
             "thinking": thinking,
@@ -219,9 +204,8 @@ class SettingsApp:
         try:
             self.config = normalize_config(self._current_config())
             save_config(self.config)
-            consultation = "开启" if self.config["consultationEnabled"] else "关闭"
             gateway = "开启" if self.config["gatewayEnabled"] else "关闭"
-            self.status.set(f"已保存 · 咨询 {consultation} · Gateway {gateway}")
+            self.status.set(f"已保存 · Gateway {gateway}")
         except OSError as error:
             messagebox.showerror("保存失败", str(error))
 

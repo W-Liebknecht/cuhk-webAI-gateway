@@ -1,8 +1,6 @@
 {
-  "consultationEnabled": false,
   "gatewayEnabled": false,
   "model": "gpt5.6sol",
   "thinking": "medium",
   "workdir": ""
 }
-

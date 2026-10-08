@@ -6,6 +6,7 @@ import { ArgumentError, CommandExecutionError, TimeoutError, EmptyResultError } 
 
 const mocks = vi.hoisted(() => ({
     ensureReady: vi.fn(),
+    getContextUsage: vi.fn(),
     getTurnCounts: vi.fn(),
     requireNonEmptyPrompt: vi.fn((value) => String(value ?? '').trim()),
     requirePositiveInt: vi.fn((value) => Number(value)),
@@ -24,6 +25,7 @@ vi.mock('./utils.js', () => ({
     CUHK_AI_URL: 'https://ai.cuhk.edu.cn/chat/',
     COMPOSER_SELECTOR: '[data-testid="chat-input"]',
     ensureReady: mocks.ensureReady,
+    getContextUsage: mocks.getContextUsage,
     getTurnCounts: mocks.getTurnCounts,
     requireNonEmptyPrompt: mocks.requireNonEmptyPrompt,
     requirePositiveInt: mocks.requirePositiveInt,
@@ -49,6 +51,7 @@ describe('cuhk-ai ask', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mocks.ensureReady.mockResolvedValue({ hasComposer: true, isLoggedIn: true });
+        mocks.getContextUsage.mockResolvedValue({ usedPercent: 22, remainingPercent: 78, truncated: false });
         mocks.getTurnCounts.mockResolvedValue({ user: 2, ai: 2 });
         mocks.sendMessage.mockResolvedValue({ ok: true });
         mocks.selectModel.mockResolvedValue({ alias: 'gpt5.6sol', display: 'GPT 5.6 Sol', thinking: ['high'] });
@@ -90,6 +93,11 @@ describe('cuhk-ai ask', () => {
         const result = await askCommand.func(page, { prompt: 'continue', new: false, 'conversation-url': target });
         expect(page.goto).toHaveBeenCalledWith(target);
         expect(result[0].conversationUrl).toBe(target);
+        expect(result[0]).toMatchObject({
+            contextUsedPercent: 22,
+            contextRemainingPercent: 78,
+            contextTruncated: false,
+        });
     });
 
     it('does not send when navigation does not restore the intended conversation', async () => {

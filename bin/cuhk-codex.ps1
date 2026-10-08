@@ -26,6 +26,9 @@ $env:no_proxy = $env:NO_PROXY
 $providerArgs = @(
     '-c', 'model_provider="cuhk_gateway"',
     '-c', 'model="gpt-5.6-sol"',
+    # The web page reports context as a percentage. Provider usage uses the
+    # same 100k synthetic scale so Codex displays that percentage faithfully.
+    '-c', 'model_context_window=100000',
     '-c', 'model_providers.cuhk_gateway.name="CUHK Gateway"',
     '-c', 'model_providers.cuhk_gateway.env_key="CUHK_GATEWAY_KEY"',
     '-c', 'model_providers.cuhk_gateway.wire_api="responses"',

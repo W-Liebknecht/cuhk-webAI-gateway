@@ -8,11 +8,10 @@ const {
   DEEPSEEK_PROFILE, GEMINI_PROFILE, GLM_PROFILE, GPT6_LUNA_PROFILE,
   GPT6_SOL_PROFILE, KIMI_PROFILE, QWEN_PROFILE, SEED_PROFILE, modelProfile
 } = require("../src/model-profiles.cjs");
-const { responseEvents } = require("../src/responses.cjs");
+const { responseEvents, responseUsage } = require("../src/responses.cjs");
 const { CuhkProviderRuntime, buildToolResultPrompt, conversationKeyOf, itemDigest, newHistoryItems } = require("../src/runtime.cjs");
 
 const baseConfig = {
-  consultationEnabled: false,
   gatewayEnabled: true,
   model: "gpt5.6sol",
   thinking: "high",
@@ -47,6 +46,9 @@ class FakeTransport {
     const next = this.outputs.shift();
     if (next instanceof Error) throw next;
     if (next === undefined) throw new Error("Fake transport has no queued output.");
+    if (next && typeof next === "object" && typeof next.text === "string") {
+      return { conversationId: "fake", ...next };
+    }
     return { text: next, conversationId: "fake" };
   }
 }
@@ -69,6 +71,19 @@ test("text-only response returns a valid Responses object", async () => {
   assert.equal(response.model, "gpt5.6sol");
   assert.equal(response.output[0].content[0].text, "Hello from CUHK");
   assert.equal(transport.calls[0].isNew, true);
+});
+
+test("web context usage becomes standard Responses usage for the Codex footer", async () => {
+  const { instance } = runtime([{ text: "Hello from CUHK", contextUsage: { usedPercent: 22, remainingPercent: 78 } }]);
+  const response = await instance.respond({ model: "ignored", input: "hello", stream: false });
+  assert.deepEqual(response.usage, {
+    input_tokens: 22000,
+    input_tokens_details: { cached_tokens: 0 },
+    output_tokens: 0,
+    output_tokens_details: { reasoning_tokens: 0 },
+    total_tokens: 22000
+  });
+  assert.equal(responseUsage({ usedPercent: 100 }).total_tokens, 100000);
 });
 
 test("function call is validated and continued in the same transport session", async () => {

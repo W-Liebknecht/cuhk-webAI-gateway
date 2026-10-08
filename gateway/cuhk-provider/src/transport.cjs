@@ -80,7 +80,11 @@ class OpenCliTransport {
         response: parsed.response
       });
       this.health = { ...this.health, ok: true, login: "Yes", status: "Connected", checkedAt: Date.now() };
-      return { text: parsed.response, conversationId: parsed.conversationUrl };
+      return {
+        text: parsed.response,
+        conversationId: parsed.conversationUrl,
+        contextUsage: normalizeContextUsage(parsed)
+      };
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }
@@ -142,6 +146,19 @@ function parseOpenCliOutput(stdout) {
   return Array.isArray(parsed) ? parsed[0] : parsed;
 }
 
+function normalizeContextUsage(row) {
+  const usedPercent = Number(row?.contextUsedPercent);
+  const remainingPercent = Number(row?.contextRemainingPercent);
+  if (!Number.isFinite(usedPercent) || usedPercent < 0 || usedPercent > 100) return null;
+  return {
+    usedPercent,
+    remainingPercent: Number.isFinite(remainingPercent)
+      ? Math.max(0, Math.min(100, remainingPercent))
+      : Math.max(0, 100 - usedPercent),
+    truncated: row?.contextTruncated === true
+  };
+}
+
 function run(command, args, timeoutMs) {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, { shell: false, windowsHide: true, stdio: ["ignore", "pipe", "pipe"] });
@@ -171,4 +188,4 @@ function run(command, args, timeoutMs) {
   });
 }
 
-module.exports = { OpenCliTransport, materializeImages, parseOpenCliOutput };
+module.exports = { OpenCliTransport, materializeImages, normalizeContextUsage, parseOpenCliOutput };

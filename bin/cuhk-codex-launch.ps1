@@ -51,8 +51,8 @@ try {
     & $gatewayCommand start | Out-Host
     if ($LASTEXITCODE -ne 0) { throw "CUHK Gateway failed to start (exit code $LASTEXITCODE)." }
 
-    Write-Host 'Opening the Gateway CLI session picker...' -ForegroundColor Cyan
-    & $codexCommand resume --all
+    Write-Host 'Opening this folder''s Gateway CLI sessions...' -ForegroundColor Cyan
+    & $codexCommand resume
     exit $LASTEXITCODE
 } catch {
     Write-Host "Launch failed: $($_.Exception.Message)" -ForegroundColor Red

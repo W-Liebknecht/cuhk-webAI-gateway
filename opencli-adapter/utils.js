@@ -63,6 +63,32 @@ export const SEND_BUTTON_SELECTOR = '[data-testid="chat-send-button"]';
 export const USER_TURN_SELECTOR = '[data-turn="user"]';
 export const AI_TURN_SELECTOR = '[data-turn="ai"]';
 
+export async function getContextUsage(page) {
+    return page.evaluate(`(() => {
+        const body = document.querySelector('[data-testid="chat-input-body"]');
+        if (!body) return null;
+        const ring = body.querySelector('circle[stroke-dasharray]');
+        const label = ring?.parentElement?.parentElement?.getAttribute('aria-label') || '';
+        const labelMatch = /(?:^|\\s|:)\\s*(\\d+(?:\\.\\d+)?)\\s*%/u.exec(label);
+        let usedPercent = labelMatch ? Number(labelMatch[1]) : NaN;
+        if (!Number.isFinite(usedPercent) && ring) {
+            const values = String(ring.getAttribute('stroke-dasharray') || '')
+                .trim().split(/[ ,]+/u).map(Number);
+            if (values.length >= 2 && values.every(Number.isFinite) && values[0] >= 0 && values[1] > 0) {
+                usedPercent = values[0] / values[1] * 100;
+            }
+        }
+        if (!Number.isFinite(usedPercent) || usedPercent < 0 || usedPercent > 100) return null;
+        const roundedUsed = Math.round(usedPercent * 10) / 10;
+        const truncated = /截断|truncated/iu.test(body.innerText || '');
+        return {
+            usedPercent: roundedUsed,
+            remainingPercent: Math.round((100 - roundedUsed) * 10) / 10,
+            truncated,
+        };
+    })()`);
+}
+
 export const MODEL_DEFINITIONS = [
     { alias: 'glm5.3flash', display: 'GLM 5.3 Flash（本地版）', thinking: ['low', 'high', 'max'] },
     { alias: 'glm5.3', display: 'GLM 5.3', thinking: [] },

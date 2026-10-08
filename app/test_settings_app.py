@@ -40,7 +40,6 @@ class SettingsConfigTests(unittest.TestCase):
 
     def test_current_config_includes_the_selected_workdir(self) -> None:
         app = settings_app.SettingsApp.__new__(settings_app.SettingsApp)
-        app.consultation_enabled = FakeVar(False)
         app.gateway_enabled = FakeVar(True)
         app.model_label = FakeVar(settings_app.MODELS["glm5.3flash"]["label"])
         app.thinking_label = FakeVar(settings_app.THINKING_LABELS["high"])
@@ -48,8 +47,19 @@ class SettingsConfigTests(unittest.TestCase):
 
         self.assertEqual(app._current_config()["workdir"], r"D:\Projects\example")
 
+    def test_normalize_config_omits_unknown_settings(self) -> None:
+        config = settings_app.normalize_config({"obsoleteSetting": True})
+
+        self.assertNotIn("obsoleteSetting", config)
+
 
 class SettingsLaunchTests(unittest.TestCase):
+    def test_launcher_uses_native_current_directory_session_filter(self) -> None:
+        launcher = settings_app.CODEX_LAUNCHER.read_text(encoding="utf-8")
+
+        self.assertIn("& $codexCommand resume", launcher)
+        self.assertNotIn("resume --all", launcher)
+
     def make_app(self, workdir: str) -> settings_app.SettingsApp:
         app = settings_app.SettingsApp.__new__(settings_app.SettingsApp)
         app.gateway_enabled = FakeVar(False)

@@ -3,6 +3,7 @@ import { cli, Strategy, ArgumentError, CommandExecutionError, TimeoutError } fro
 import {
     CUHK_AI_DOMAIN,
     ensureReady,
+    getContextUsage,
     getTurnCounts,
     requireNonEmptyPrompt,
     requirePositiveInt,
@@ -38,7 +39,7 @@ export const askCommand = cli({
         { name: 'model', help: 'Model alias from `cuhk-ai models` (including qwen3.8-27b, seed2.1pro, gemini3.8flash, gpt6sol, and gpt6luna)' },
         { name: 'thinking', help: 'Thinking level supported by the selected model: none, low, medium, high, xhigh, or max' },
     ],
-    columns: ['response'],
+    columns: ['response', 'contextUsedPercent', 'contextRemainingPercent', 'contextTruncated'],
 
     func: async (page, args) => {
         let promptValue = args.prompt;
@@ -134,7 +135,14 @@ export const askCommand = cli({
             if (!/^https:\/\/ai\.cuhk\.edu\.cn\/chat\/c\/[a-zA-Z0-9-]+\/?$/.test(conversationUrl)) {
                 throw new CommandExecutionError('No durable conversation URL after submission; delivery is uncertain.');
             }
-            return [{ response, conversationUrl }];
+            const context = await getContextUsage(page);
+            return [{
+                response,
+                conversationUrl,
+                contextUsedPercent: context?.usedPercent ?? null,
+                contextRemainingPercent: context?.remainingPercent ?? null,
+                contextTruncated: context?.truncated ?? false,
+            }];
         }
         return [{ response }];
     },

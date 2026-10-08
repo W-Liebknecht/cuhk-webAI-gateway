@@ -6,21 +6,21 @@
 
 ## 能做什么
 
-- 从命令行或 agent skill 调用学校网页 AI；
+- 从命令行调用学校网页 AI；
 - 为 Codex CLI 提供本地 `/v1/responses` Gateway；
 - 将网页模型的文本决策转换为受校验的本地工具调用；
 - 让同一个 Codex 会话复用同一个网页会话；
-- 提供模型、思考强度、咨询开关、Gateway 开关和工作目录的本地控制面板；
+- 读取网页上下文使用率，通过 Responses `usage` 同步 Codex 的剩余上下文指示；
+- 提供模型、思考强度、Gateway 开关和工作目录的本地控制面板；
 - 隔离 Gateway Codex 的配置、历史和附件，不改写桌面端的官方订阅配置。
 
 ## 仓库内容
 
 ```text
 app/                    本地设置面板
-bin/                    agent、Gateway 与 Codex 启动入口
+bin/                    Gateway 与 Codex 启动入口
 opencli-adapter/        CUHK 网页适配器及测试
 gateway/cuhk-provider/  CCR provider、Responses/工具状态机及测试
-skill/                  可安装到 Codex 的二级顾问 skill
 docs/                   架构、协议与恢复设计
 config.example.json     不含个人数据的配置模板
 ```
@@ -50,7 +50,7 @@ config.example.json     不含个人数据的配置模板
    npm run build
    ```
 
-2. 准备 CCR 的已构建 checkout，并设置 `CUHK_CCR_ROOT`。如 OpenCLI 不在默认相邻目录，同时设置 `CUHK_OPENCLI_ROOT`；安装 agent skill 时设置 `CUHK_AI_BRIDGE_ROOT`。
+2. 准备 CCR 的已构建 checkout，并设置 `CUHK_CCR_ROOT`。如 OpenCLI 不在默认相邻目录，同时设置 `CUHK_OPENCLI_ROOT`。
 
 3. 创建本地配置。`config.json` 已被 Git 忽略，不应提交：
 
@@ -60,7 +60,7 @@ config.example.json     不含个人数据的配置模板
 
 4. 按 OpenCLI 说明加载 Chrome 扩展，打开 `https://ai.cuhk.edu.cn` 并由用户本人完成登录。仓库不会读取或保存密码、SSO Token 或浏览器 Cookie。
 
-5. 双击 `CUHK-AI-Settings.cmd`，选择模型和工作目录，然后点击“启动 Gateway Codex CLI”。
+5. 双击 `CUHK-AI-Settings.cmd`，选择模型和工作目录，然后点击“启动 Gateway Codex CLI”。会话选择器按所选工作目录筛选历史会话。
 
 ## 验证
 

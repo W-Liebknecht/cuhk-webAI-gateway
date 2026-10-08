@@ -9,14 +9,12 @@ const base = {
   thinking: "medium"
 };
 
-test("Gateway switch is independent from consultation", () => {
+test("Gateway configuration accepts its own switch", () => {
   const config = validateConfig({
     ...base,
-    consultationEnabled: false,
     gatewayEnabled: true
   });
   assert.equal(config.gatewayEnabled, true);
-  assert.equal(Object.hasOwn(config, "consultationEnabled"), false);
 });
 
 test("legacy enabled field remains a migration fallback", () => {
