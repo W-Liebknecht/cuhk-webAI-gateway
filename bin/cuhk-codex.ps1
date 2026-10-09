@@ -27,8 +27,12 @@ $providerArgs = @(
     '-c', 'model_provider="cuhk_gateway"',
     '-c', 'model="gpt-5.6-sol"',
     # The web page reports context as a percentage. Provider usage uses the
-    # same 100k synthetic scale so Codex displays that percentage faithfully.
+    # 100k synthetic window; responseUsage inverts Codex's effective-window
+    # and fixed-baseline calculation to preserve the web percentage.
     '-c', 'model_context_window=100000',
+    # Newer Codex releases omit context from the default footer. Keep it first
+    # so narrow terminals still show the web conversation's remaining context.
+    '-c', 'tui.status_line=["context-remaining","model-with-reasoning","current-dir"]',
     '-c', 'model_providers.cuhk_gateway.name="CUHK Gateway"',
     '-c', 'model_providers.cuhk_gateway.env_key="CUHK_GATEWAY_KEY"',
     '-c', 'model_providers.cuhk_gateway.wire_api="responses"',

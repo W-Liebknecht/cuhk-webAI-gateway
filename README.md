@@ -62,6 +62,10 @@ config.example.json     不含个人数据的配置模板
 
 5. 双击 `CUHK-AI-Settings.cmd`，选择模型和工作目录，然后点击“启动 Gateway Codex CLI”。会话选择器按所选工作目录筛选历史会话。
 
+## 上下文显示
+
+Gateway CLI 启动器显式启用底栏的 `context-remaining`，因此新版 Codex 也会显示 `Context …% left`。该比例在每个网页回合完成后更新；显示单位已补偿 Codex 的有效窗口与固定提示基线，并不代表学校模型的真实 token 数。更新启动器后，已有 CLI 窗口需要退出并重新打开；更新 provider 后需要重启 Gateway。
+
 ## 验证
 
 ```powershell

@@ -77,13 +77,19 @@ test("web context usage becomes standard Responses usage for the Codex footer", 
   const { instance } = runtime([{ text: "Hello from CUHK", contextUsage: { usedPercent: 22, remainingPercent: 78 } }]);
   const response = await instance.respond({ model: "ignored", input: "hello", stream: false });
   assert.deepEqual(response.usage, {
-    input_tokens: 22000,
+    input_tokens: 30260,
     input_tokens_details: { cached_tokens: 0 },
     output_tokens: 0,
     output_tokens_details: { reasoning_tokens: 0 },
-    total_tokens: 22000
+    total_tokens: 30260
   });
-  assert.equal(responseUsage({ usedPercent: 100 }).total_tokens, 100000);
+  assert.equal(responseUsage({ usedPercent: 100 }).total_tokens, 95000);
+  for (const usedPercent of [0, 1.5, 3.1, 22, 50, 100]) {
+    const tokens = responseUsage({ usedPercent }).total_tokens;
+    // Codex TokenUsage::percent_of_context_window_remaining (0.160).
+    const displayed = Math.round((95000 - 12000 - Math.max(0, tokens - 12000)) / (95000 - 12000) * 100);
+    assert.equal(displayed, Math.round(100 - usedPercent));
+  }
 });
 
 test("function call is validated and continued in the same transport session", async () => {
