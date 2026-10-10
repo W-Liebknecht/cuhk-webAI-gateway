@@ -17,6 +17,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: windows-installer-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: windows-2022
@@ -40,7 +44,7 @@ jobs:
       - name: Prepare and check installer payload
         shell: pwsh
         run: |
-          $node = (Get-Command node.exe -CommandType Application).Source
+          $node = (Get-Command node.exe -CommandType Application | Select-Object -First 1).Source
           $pythonLicense = python -c "import pathlib,sys; print(pathlib.Path(sys.base_prefix) / 'LICENSE.txt')"
           Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/nodejs/node/v24.19.0/LICENSE' -OutFile build/NODE-LICENSE.txt
           ./scripts/build-windows-payload.ps1 -OutputDirectory "$PWD/build/payload" -NodeExecutable $node -SettingsExecutable "$PWD/build/app/CUHK-AI-Settings.exe" -NodeLicense "$PWD/build/NODE-LICENSE.txt" -PythonLicense $pythonLicense
@@ -70,6 +74,8 @@ jobs:
           }
           & (Join-Path $target 'runtime/node.exe') (Join-Path $target 'scripts/check-install.cjs')
           if ($LASTEXITCODE -ne 0) { throw 'Installed runtime check failed.' }
+          $panel = Start-Process -FilePath (Join-Path $target 'app/CUHK-AI-Settings.exe') -ArgumentList '--print-config' -Wait -PassThru
+          if ($panel.ExitCode -ne 0) { throw 'Bundled control panel failed to start.' }
           $uninstalled = Start-Process -FilePath (Join-Path $target 'unins000.exe') -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART') -Wait -PassThru
           if ($uninstalled.ExitCode -ne 0) { throw "Uninstall failed: $($uninstalled.ExitCode)" }
           if (Test-Path -LiteralPath (Join-Path $target 'app/CUHK-AI-Settings.exe')) { throw 'Application executable remained after uninstall.' }
