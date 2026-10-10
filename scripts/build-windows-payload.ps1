@@ -44,4 +44,5 @@ foreach ($name in @('opencli', 'claude-code-router')) {
     if ($LASTEXITCODE -ge 8) { throw "Copying $name failed with robocopy exit code $LASTEXITCODE" }
     $global:LASTEXITCODE = 0
 }
+Copy-Item -LiteralPath (Join-Path $root '.dependencies\dependency-inventory.json') -Destination (Join-Path $output '.dependencies\dependency-inventory.json')
 Write-Host "Windows installer payload ready: $output"

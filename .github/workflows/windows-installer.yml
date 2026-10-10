@@ -94,4 +94,5 @@ jobs:
       - name: Publish GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: gh release create "$GITHUB_REF_NAME" dist/* --generate-notes --title "CUHK AI Bridge $GITHUB_REF_NAME"
