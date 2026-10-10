@@ -87,6 +87,12 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Installed runtime check failed.' }
           $panel = Start-Process -FilePath (Join-Path $target 'app/CUHK-AI-Settings.exe') -ArgumentList '--print-config' -Wait -PassThru
           if ($panel.ExitCode -ne 0) { throw 'Bundled control panel failed to start.' }
+          try {
+            & (Join-Path $target 'runtime/node.exe') (Join-Path $target 'bin/cuhk-gateway.cjs') start
+            if ($LASTEXITCODE -ne 0) { throw 'Installed Gateway failed to start.' }
+          } finally {
+            & (Join-Path $target 'runtime/node.exe') (Join-Path $target 'bin/cuhk-gateway.cjs') stop
+          }
           $uninstalled = Start-Process -FilePath (Join-Path $target 'unins000.exe') -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART') -Wait -PassThru
           if ($uninstalled.ExitCode -ne 0) { throw "Uninstall failed: $($uninstalled.ExitCode)" }
           if (Test-Path -LiteralPath (Join-Path $target 'app/CUHK-AI-Settings.exe')) { throw 'Application executable remained after uninstall.' }
