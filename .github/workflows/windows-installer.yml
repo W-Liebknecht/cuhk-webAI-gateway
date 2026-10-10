@@ -52,8 +52,8 @@ jobs:
       - name: Compile setup executable
         shell: pwsh
         run: |
-          $compiler = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
-          if (-not (Test-Path -LiteralPath $compiler)) { throw 'Inno Setup compiler not found.' }
+          $compiler = @("${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe", "${env:ProgramFiles(x86)}\Inno Setup 7\ISCC.exe", "$env:ProgramFiles\Inno Setup 7\ISCC.exe") | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+          if (-not $compiler) { throw 'Inno Setup compiler not found.' }
           $version = if ($env:GITHUB_REF_TYPE -eq 'tag') { $env:GITHUB_REF_NAME.TrimStart('v') } else { "0.1.0-dev.$env:GITHUB_RUN_NUMBER" }
           & $compiler "/DPayloadDir=$PWD\build\payload" "/DAppVersion=$version" installer/windows.iss
           if ($LASTEXITCODE -ne 0) { throw 'Installer compilation failed.' }
