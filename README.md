@@ -4,7 +4,7 @@
 
 > An experimental, local bridge from the CUHK-Shenzhen AI website to Codex CLI and Claude Code CLI. The browser stays logged in on your own computer; this repository is currently a developer checkout, not a ready-to-install release.
 
-本项目是个人社区项目，**与香港中文大学（深圳）、OpenAI、Anthropic 没有关联或官方背书**。你需要自行拥有学校 AI 网页的合法访问权限。它不提供学校账号、模型额度或云端代跑服务。
+本项目是个人社区项目，你需要自行拥有学校 AI 网页的合法访问权限。它不提供学校账号、模型额度。
 
 ## 它能做什么
 
@@ -26,7 +26,7 @@ Codex CLI / Claude Code CLI
           └─ 工具决策返回本机 CLI 执行
 ```
 
-这不是绕过登录的模型 API。网页和浏览器必须在使用时可用；本地工具仍受所用 CLI 的权限设置约束。Gateway 在本机监听回环地址，CLI 提示、网页对话和运行日志可能含有私人内容，分享诊断材料前请先脱敏。
+网页端AI须在使用时为登录状态；本地工具仍遵循所用 CLI 的权限设置。Gateway 在本机监听回环地址。
 
 ## 真实生成示例
 
@@ -36,17 +36,10 @@ Codex CLI / Claude Code CLI
 
 ## 当前状态（2026-10）
 
-Codex CLI 与 Claude Code CLI 的双入口、Qwen/GLM 工具链和真实网页验收已经完成。离线验收结果为 Provider 172/172、OpenCLI 适配器 45/45、面板 10/10；验收范围与方式见 [Claude Code 验收记录](docs/claude-code-gateway.md)。这些数字说明已测场景通过，**不代表所有模型、网页改版或客户端版本都已兼容**。
+Codex CLI 与 Claude Code CLI 的双入口、Qwen/GLM 工具链和真实网页验收已经完成。离线验收结果为 Provider 172/172、OpenCLI 适配器 45/45、面板 10/10；验收范围与方式见 [Claude Code 验收记录](docs/claude-code-gateway.md)。这些数字说明已测场景通过。
 
 **当前提供 Windows 源码安装，尚无一键安装的桌面发行包。** 启动入口会发现 Node 和依赖路径，准备脚本从公开上游获取固定版本并构建运行时与扩展。完整步骤见 [安装指南](docs/install.md)，验证范围与剩余工作见 [发布准备清单](docs/release-readiness.md)。
 
-### 已知边界
-
-- 多个 CLI 会话目前共用一个串行浏览器页；会话恢复已验证，真正多标签并发尚未实现。
-- Claude Code 使用已验收的 Anthropic Messages 子集，Codex 使用 Responses 子集；不宣称完整 API 兼容。
-- 网页模型、按钮、登录流程或客户端版本变化可能使适配失效。
-- 网页上下文百分比映射到 CLI 的显示标尺，**不是学校模型的真实 token 账单**。
-- 学校网页上的内容可以被网页服务看到；本地文件仅在 CLI 获得权限并实际调用工具时由本机读取或修改。
 
 ## 安装与使用
 
@@ -71,7 +64,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\setup.ps1
 .\bin\cuhk-gateway.cmd stop
 ```
 
-控制面板的“工作目录”是 CLI 要处理的项目，不是本桥接器的源码目录。Gateway 状态、密钥和 CLI 独立数据在被 Git 忽略的 `gateway/runtime-state/` 中。本地 `config.json` 从安全的 `config.example.json` 初始化，不再提交到 Git；分享截图、日志和配置时请检查路径及私人内容。
+控制面板的“工作目录”是 CLI 要处理的项目。Gateway 状态、密钥和 CLI 独立数据在被 Git 忽略的 `gateway/runtime-state/` 中。本地 `config.json` 从安全的 `config.example.json` 初始化，不再提交到 Git；分享截图、日志和配置时请检查路径及私人内容。
 
 ## 原理与文档
 
@@ -90,12 +83,12 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\setup.ps1
 
 ## 参与和反馈
 
-欢迎分享真实使用反馈、复现步骤与修复建议，也欢迎给仓库 Star，帮助其他有同样需求的同学找到它。报错请按 [贡献指南](CONTRIBUTING.md) 提供版本、触发步骤和脱敏日志；安全问题按 [安全说明](SECURITY.md) 私下报告。提交 Issue 不需要提供学校账号、Cookie、完整对话或本地文件。
+欢迎分享真实使用反馈、复现步骤与修复建议，也欢迎给仓库 Star，帮助其他有同样需求的使用者找到它。报错请按 [贡献指南](CONTRIBUTING.md) 提供版本、触发步骤和脱敏日志；安全问题按 [安全说明](SECURITY.md) 私下报告。提交 Issue 不需要提供学校账号、Cookie、完整对话或本地文件。
 
-本项目按个人时间维护，尚无稳定性或长期兼容承诺。适用于愿意自行检查代码、理解本地工具权限和协助排障的使用者。
+本项目按个人时间维护，欢迎愿意自行检查代码、理解本地工具权限和协助排障的使用者。
 
 准备分享项目时，可以使用 [项目简介](docs/project-profile.md) 中的短文；请保留“开发版、Windows 源码安装”的说明。
 
 ## 许可证
 
-本仓库原创代码与文档按 [MIT License](LICENSE) 开放，允许使用、修改、再分发和商业使用，要求保留许可证与版权声明。Star 完全自愿，不是使用条件。OpenCLI、Claude Code Router 及其他第三方组件保留各自的许可证和版权；详见 [第三方说明](THIRD_PARTY_NOTICES.md)。软件许可证不授予学校 AI 服务、账号或模型的使用权。
+本仓库原创代码与文档按 [MIT License](LICENSE) 开放，允许使用、修改、再分发和商业使用，要求保留许可证与版权声明。Star。OpenCLI、Claude Code Router 及其他第三方组件保留各自的许可证和版权；详见 [第三方说明](THIRD_PARTY_NOTICES.md)。软件许可证不授予学校 AI 服务、账号或模型的使用权。
