@@ -2,6 +2,7 @@
 node_modules/
 .dependencies/
 dist/
+build/
 config.json
 
 # --- local runtime state (never commit; see README "runtime-state") --------

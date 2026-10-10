@@ -2,7 +2,7 @@
 
 把香港中文大学（深圳）AI 网页中的模型接入本地 Codex CLI 和 Claude Code CLI，并让工具调用仍由你电脑上的 CLI 执行。
 
-> An experimental, local bridge from the CUHK-Shenzhen AI website to Codex CLI and Claude Code CLI. The browser stays logged in on your own computer; this repository is currently a developer checkout, not a ready-to-install release.
+> An experimental, local bridge from the CUHK-Shenzhen AI website to Codex CLI and Claude Code CLI. The browser stays logged in on your own computer.
 
 本项目是个人社区项目，**与香港中文大学（深圳）、OpenAI、Anthropic 没有关联或官方背书**。你需要自行拥有学校 AI 网页的合法访问权限。它不提供学校账号、模型额度或云端代跑服务。
 
@@ -38,7 +38,7 @@ Codex CLI / Claude Code CLI
 
 Codex CLI 与 Claude Code CLI 的双入口、Qwen/GLM 工具链和真实网页验收已经完成。离线验收结果为 Provider 172/172、OpenCLI 适配器 45/45、面板 10/10；验收范围与方式见 [Claude Code 验收记录](docs/claude-code-gateway.md)。这些数字说明已测场景通过，**不代表所有模型、网页改版或客户端版本都已兼容**。
 
-**当前提供 Windows 源码安装，尚无一键安装的桌面发行包。** 启动入口会发现 Node 和依赖路径，准备脚本从公开上游获取固定版本并构建运行时与扩展。完整步骤见 [安装指南](docs/install.md)，验证范围与剩余工作见 [发布准备清单](docs/release-readiness.md)。
+Windows 安装程序的构建流程已纳入仓库。发布后的安装包可从 [GitHub Releases](https://github.com/hfp556/cuhk-ai-codex-bridge/releases) 下载；若页面尚无 `CUHK-AI-Bridge-Setup-...-win-x64.exe`，请先使用源码安装。完整步骤见 [安装指南](docs/install.md)，验证范围见 [发布准备清单](docs/release-readiness.md)。
 
 ### 已知边界
 
@@ -50,7 +50,9 @@ Codex CLI 与 Claude Code CLI 的双入口、Qwen/GLM 工具链和真实网页�
 
 ## 安装与使用
 
-准备 Git、Node.js 22+（含 npm）、Python 3（含 Tkinter）、Chrome 以及选用的 Codex/Claude Code CLI 后，在仓库根目录运行：
+普通 Windows 用户请打开 [GitHub Releases](https://github.com/hfp556/cuhk-ai-codex-bridge/releases)，下载最新版本中名为 `CUHK-AI-Bridge-Setup-...-win-x64.exe` 的文件，双击运行并按照向导选择安装目录。安装完成后会打开首次使用说明。安装包包含 Node、OpenCLI、扩展文件和控制面板；仍需 Chrome、学校网页登录和选用的 Codex/Claude Code CLI。详细图文步骤见 [安装指南](docs/install.md)。
+
+开发者源码安装需准备 Git、Node.js 22+（含 npm）、Python 3（含 Tkinter）、Chrome 和选用的 CLI，然后在仓库根目录运行：
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\setup.ps1
@@ -78,7 +80,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\setup.ps1
 | 想了解 | 入口 |
 | --- | --- |
 | 双 CLI 的使用方式、协议范围、真实验收 | [Claude Code Gateway](docs/claude-code-gateway.md) |
-| Windows 源码安装、扩展权限与更新 | [安装指南](docs/install.md) |
+| Windows 安装程序、源码安装、扩展权限与更新 | [安装指南](docs/install.md) |
 | Gateway 与浏览器适配层的边界 | [Gateway 架构](docs/gateway-architecture.md) |
 | OpenCLI 命令、模型别名、网页交互策略 | [OpenCLI 适配器](docs/opencli-adapter.md) |
 | 发布前缺口与复现限制 | [发布准备清单](docs/release-readiness.md) |
@@ -94,7 +96,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\setup.ps1
 
 本项目按个人时间维护，尚无稳定性或长期兼容承诺。适用于愿意自行检查代码、理解本地工具权限和协助排障的使用者。
 
-准备分享项目时，可以使用 [项目简介](docs/project-profile.md) 中的短文；请保留“开发版、Windows 源码安装”的说明。
+准备分享项目时，可以使用 [项目简介](docs/project-profile.md) 中的短文；请说明这是开发版，并在安装包尚未发布时指向源码安装指南。
 
 ## 许可证
 

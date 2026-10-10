@@ -10,7 +10,13 @@ from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 
 
-ROOT = Path(__file__).resolve().parents[1]
+def application_root() -> Path:
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).resolve().parents[1]
+    return Path(__file__).resolve().parents[1]
+
+
+ROOT = application_root()
 CONFIG_PATH = ROOT / "config.json"
 OPENCLI = ROOT / "bin" / "opencli.cmd"
 CODEX_LAUNCHER = ROOT / "bin" / "cuhk-codex-launch.ps1"

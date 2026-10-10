@@ -35,6 +35,8 @@ check("CCR native dependencies", () => {
   return ccr;
 });
 check("Python and Tkinter", () => {
+  const packagedPanel = path.join(root, "app/CUHK-AI-Settings.exe");
+  if (fs.existsSync(packagedPanel)) return "bundled control panel";
   const windowed = ["pyw.exe", "pythonw.exe"].some(command => spawnSync("where.exe", [command], { encoding: "utf8" }).status === 0);
   if (!windowed) throw new Error("pyw.exe or pythonw.exe must be on PATH for the control panel");
   for (const [command, prefix] of [["py", ["-3"]], ["python", []]]) {

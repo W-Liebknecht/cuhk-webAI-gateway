@@ -5,6 +5,8 @@ function Get-CuhkNode {
         }
         return $env:CUHK_NODE_EXE
     }
+    $local = Join-Path (Split-Path -Parent $PSScriptRoot) 'runtime\node.exe'
+    if (Test-Path -LiteralPath $local -PathType Leaf) { return $local }
     $command = Get-Command node.exe -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
     if ($command) { return $command.Source }
     $bundled = Join-Path $env:USERPROFILE '.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe'

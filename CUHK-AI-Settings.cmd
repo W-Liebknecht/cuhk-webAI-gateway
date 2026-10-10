@@ -1,4 +1,8 @@
 @echo off
+if exist "%~dp0app\CUHK-AI-Settings.exe" (
+    start "" "%~dp0app\CUHK-AI-Settings.exe"
+    exit /b 0
+)
 where pyw.exe >nul 2>nul
 if not errorlevel 1 goto python_launcher
 where pythonw.exe >nul 2>nul

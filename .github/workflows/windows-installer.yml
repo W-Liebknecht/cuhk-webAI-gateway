@@ -1,0 +1,97 @@
+name: Windows installer
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+  pull_request:
+    paths:
+      - '.github/workflows/windows-installer.yml'
+      - 'installer/**'
+      - 'scripts/**'
+      - 'app/**'
+      - 'bin/**'
+      - 'docs/first-run.html'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-2022
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.19.0'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build pinned runtime and browser extension
+        shell: pwsh
+        run: ./scripts/setup.ps1
+      - name: Freeze the control panel
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check pyinstaller==6.16.0
+          python -m PyInstaller --onefile --windowed --clean --name CUHK-AI-Settings --distpath build/app --workpath build/pyinstaller --specpath build app/settings_app.py
+      - name: Prepare and check installer payload
+        shell: pwsh
+        run: |
+          $node = (Get-Command node.exe -CommandType Application).Source
+          $pythonLicense = python -c "import pathlib,sys; print(pathlib.Path(sys.base_prefix) / 'LICENSE.txt')"
+          Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/nodejs/node/v24.19.0/LICENSE' -OutFile build/NODE-LICENSE.txt
+          ./scripts/build-windows-payload.ps1 -OutputDirectory "$PWD/build/payload" -NodeExecutable $node -SettingsExecutable "$PWD/build/app/CUHK-AI-Settings.exe" -NodeLicense "$PWD/build/NODE-LICENSE.txt" -PythonLicense $pythonLicense
+          & "$PWD/build/payload/runtime/node.exe" "$PWD/build/payload/scripts/check-install.cjs"
+          if ($LASTEXITCODE -ne 0) { throw 'Installer payload failed its runtime check.' }
+      - name: Install installer compiler
+        shell: pwsh
+        run: choco install innosetup --yes --no-progress
+      - name: Compile setup executable
+        shell: pwsh
+        run: |
+          $compiler = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path -LiteralPath $compiler)) { throw 'Inno Setup compiler not found.' }
+          $version = if ($env:GITHUB_REF_TYPE -eq 'tag') { $env:GITHUB_REF_NAME.TrimStart('v') } else { "0.1.0-dev.$env:GITHUB_RUN_NUMBER" }
+          & $compiler "/DPayloadDir=$PWD\build\payload" "/DAppVersion=$version" installer/windows.iss
+          if ($LASTEXITCODE -ne 0) { throw 'Installer compilation failed.' }
+          Get-FileHash dist/CUHK-AI-Bridge-Setup-*-win-x64.exe -Algorithm SHA256 | ForEach-Object { "{0}  {1}" -f $_.Hash, (Split-Path $_.Path -Leaf) } | Set-Content dist/SHA256SUMS.txt
+      - name: Smoke test silent install and uninstall
+        shell: pwsh
+        run: |
+          $setup = (Resolve-Path dist/CUHK-AI-Bridge-Setup-*-win-x64.exe).Path
+          $target = Join-Path $env:RUNNER_TEMP 'CUHKBridgeSmoke'
+          $installed = Start-Process -FilePath $setup -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/DIR=$target") -Wait -PassThru
+          if ($installed.ExitCode -ne 0) { throw "Setup failed: $($installed.ExitCode)" }
+          foreach ($relative in @('app/CUHK-AI-Settings.exe', 'runtime/node.exe', '.dependencies/opencli/extension/dist/background.js', 'unins000.exe')) {
+            if (-not (Test-Path -LiteralPath (Join-Path $target $relative))) { throw "Installed file missing: $relative" }
+          }
+          & (Join-Path $target 'runtime/node.exe') (Join-Path $target 'scripts/check-install.cjs')
+          if ($LASTEXITCODE -ne 0) { throw 'Installed runtime check failed.' }
+          $uninstalled = Start-Process -FilePath (Join-Path $target 'unins000.exe') -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART') -Wait -PassThru
+          if ($uninstalled.ExitCode -ne 0) { throw "Uninstall failed: $($uninstalled.ExitCode)" }
+          if (Test-Path -LiteralPath (Join-Path $target 'app/CUHK-AI-Settings.exe')) { throw 'Application executable remained after uninstall.' }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: |
+            dist/CUHK-AI-Bridge-Setup-*-win-x64.exe
+            dist/SHA256SUMS.txt
+          if-no-files-found: error
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows-installer
+          path: dist
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/* --generate-notes --title "CUHK AI Bridge $GITHUB_REF_NAME"

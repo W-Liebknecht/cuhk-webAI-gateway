@@ -20,6 +20,11 @@ class FakeVar:
 
 
 class SettingsConfigTests(unittest.TestCase):
+    def test_frozen_panel_uses_installed_application_root(self) -> None:
+        with mock.patch.object(settings_app.sys, "frozen", True, create=True), \
+             mock.patch.object(settings_app.sys, "executable", r"C:\Users\Example\AppData\Local\Programs\CUHK AI Bridge\app\CUHK-AI-Settings.exe"):
+            self.assertEqual(settings_app.application_root(), Path(r"C:\Users\Example\AppData\Local\Programs\CUHK AI Bridge"))
+
     def test_qwen_local_model_preserves_its_verified_thinking_levels(self) -> None:
         for thinking in ("none", "low", "medium", "xhigh"):
             config = settings_app.normalize_config({"model": "qwen3.8-27b", "thinking": thinking})

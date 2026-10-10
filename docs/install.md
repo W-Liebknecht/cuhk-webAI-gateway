@@ -1,4 +1,19 @@
-# Windows 源码安装
+# Windows 安装指南
+
+## 用安装程序安装（推荐）
+
+1. 打开 [GitHub Releases](https://github.com/hfp556/cuhk-ai-codex-bridge/releases)。在最新版本的 **Assets** 中下载 `CUHK-AI-Bridge-Setup-<版本>-win-x64.exe`。不要下载 GitHub 自动生成的 `Source code` 压缩包当作安装程序。若暂时没有 EXE，请按下方“从源码安装”。
+2. 双击 EXE，阅读许可证，按向导选择安装文件夹。默认安装在当前用户的 AppData 目录，不要求管理员密码。可以按需勾选“创建桌面快捷方式”。
+3. 安装结束后阅读自动打开的“首次使用说明”。也可以从 Windows 开始菜单中的 **CUHK AI Bridge → 首次使用说明** 再次打开。
+4. 安装 Google Chrome，在 Chrome 地址栏打开 `chrome://extensions`，开启“开发者模式”，点击“加载已解压的扩展程序”。从开始菜单打开 **CUHK AI Bridge → 打开 Chrome 扩展文件夹**，在 Chrome 选择窗口中选中这个 `extension` 文件夹。
+5. 在同一个 Chrome 中打开 `https://ai.cuhk.edu.cn` 并自行登录，使用时保持 Chrome 开启。按官方说明另行安装 [Codex CLI](https://github.com/openai/codex) 或 [Claude Code](https://code.claude.com/docs/en/setup)，只需选择一种。
+6. 从开始菜单或桌面快捷方式打开 **CUHK AI Bridge**，选择 CLI 要处理的工作目录、网页模型及思考强度，点击所需的客户端启动按钮。
+
+安装程序包含 Node、固定版本的 OpenCLI 与 Claude Code Router、Chrome 扩展文件及独立控制面板。安装后无需再运行 `setup.ps1`，也无需安装 Git、Node 或 Python。它不会替你登录学校网站，也不会把扩展静默加入 Chrome。扩展权限如下方所述。
+
+更新时从 Releases 下载新版安装程序，关闭已打开的客户端和 Gateway 后运行。使用相同安装目录会保留本地配置。卸载入口在 Windows “已安装的应用”或开始菜单；卸载前请自行备份需要保留的配置与会话。卸载器只移除由安装程序安装的文件，不主动删除个人配置或运行数据。
+
+## 从源码安装
 
 这份指南适用于 Windows 10/11 的源码安装。Gateway 和工具运行在你的电脑上，使用你已登录的 Chrome；无需维护者电脑在线。首次准备会下载并构建 OpenCLI、Chrome 扩展和 Claude Code Router，不包含学校账号或模型额度。
 
