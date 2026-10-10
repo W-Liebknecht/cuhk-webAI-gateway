@@ -16,7 +16,7 @@ try {
     foreach ($file in ($files | Sort-Object -Unique)) {
         if ($file -eq 'config.json' -or $file -match '^(memory/|\.worktrees/|\.dependencies/|dist/|gateway/(runtime-state|host-state)/)') { continue }
         if ($file -match '^research/' -and $file -ne 'research/README.md') { continue }
-        if ($file -notmatch '^(bin/|app/|scripts/|docs/|gateway/cuhk-provider/|opencli-adapter/|artifacts/|\.github/)' -and
+        if ($file -notmatch '^(bin/|app/|scripts/|installer/|docs/|gateway/cuhk-provider/|opencli-adapter/|artifacts/|\.github/)' -and
             $file -notin @('README.md', 'CUHK-CODEX-START.md', 'CONTRIBUTING.md', 'SECURITY.md', 'SUPPORT.md',
                 'THIRD_PARTY_NOTICES.md', 'LICENSE', '.gitignore', '.gitattributes', 'research/README.md',
                 'CUHK-AI-Settings.cmd', 'config.example.json', 'dependencies.lock.json')) { continue }

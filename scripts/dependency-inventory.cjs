@@ -6,14 +6,15 @@ const packages = [];
 function visit(root) {
   if (!fs.existsSync(root)) return;
   for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
-    if (!entry.isDirectory() || entry.name === ".git") continue;
+    if (!entry.isDirectory() || entry.name.startsWith(".")) continue;
     const child = path.join(root, entry.name);
+    if (entry.name.startsWith("@")) { visit(child); continue; }
     const manifest = path.join(child, "package.json");
     if (fs.existsSync(manifest)) {
       const pkg = JSON.parse(fs.readFileSync(manifest, "utf8"));
-      if (pkg.name && pkg.version) packages.push({ name: pkg.name, version: pkg.version, license: pkg.license || "UNDECLARED", location: path.relative(directory, child).replaceAll("\\", "/") });
+      if (pkg.name && pkg.version) packages.push({ name: pkg.name, version: pkg.version, license: pkg.license || pkg.licence || pkg.licenses || "UNDECLARED", location: path.relative(directory, child).replaceAll("\\", "/") });
     }
-    visit(child);
+    visit(path.join(child, "node_modules"));
   }
 }
 for (const name of ["opencli", "claude-code-router"]) {
@@ -23,5 +24,5 @@ for (const name of ["opencli", "claude-code-router"]) {
 }
 packages.sort((a, b) => a.location.localeCompare(b.location));
 const destination = path.join(directory, "dependency-inventory.json");
-fs.writeFileSync(destination, JSON.stringify({ generatedAt: new Date().toISOString(), scope: "Installed dependencies; metadata inventory, not a license audit. No dependencies are bundled in the source release.", packages }, null, 2) + "\n");
+fs.writeFileSync(destination, JSON.stringify({ generatedAt: new Date().toISOString(), scope: "Installed dependencies; metadata inventory, not a license audit.", packages }, null, 2) + "\n");
 console.log(`Dependency inventory: ${destination} (${packages.length} package entries)`);

@@ -59,6 +59,15 @@ jobs:
           Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/nodejs/node/v24.19.0/LICENSE' -OutFile build/NODE-LICENSE.txt
           ./scripts/build-windows-payload.ps1 -OutputDirectory "$PWD/build/payload" -NodeExecutable $node -SettingsExecutable "$PWD/build/app/CUHK-AI-Settings.exe" -NodeLicense "$PWD/build/NODE-LICENSE.txt" -PythonLicense $pythonLicense
           & $node scripts/dependency-inventory.cjs "$PWD/build/payload/.dependencies"
+          if ($LASTEXITCODE -ne 0) { throw 'Dependency inventory failed.' }
+          & $node scripts/collect-bundled-notices.cjs "$PWD/build/payload/.dependencies" "$PWD/build/payload/licenses/npm"
+          if ($LASTEXITCODE -ne 0) { throw 'Bundled notice collection failed.' }
+          Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/pyinstaller/pyinstaller/v6.16.0/COPYING.txt' -OutFile build/payload/licenses/PYINSTALLER-COPYING.txt
+          $tclRoot = python -c "import pathlib,sys; print(pathlib.Path(sys.base_prefix) / 'tcl')"
+          Get-ChildItem -LiteralPath $tclRoot -Filter license.terms -Recurse | ForEach-Object {
+            $relative = [IO.Path]::GetRelativePath($tclRoot, $_.FullName).Replace('\', '_')
+            Copy-Item -LiteralPath $_.FullName -Destination "build/payload/licenses/TCL-TK-$relative"
+          }
           & "$PWD/build/payload/runtime/node.exe" "$PWD/build/payload/scripts/check-install.cjs"
           if ($LASTEXITCODE -ne 0) { throw 'Installer payload failed its runtime check.' }
       - name: Install installer compiler
