@@ -41,6 +41,16 @@ jobs:
         run: |
           python -m pip install --disable-pip-version-check pyinstaller==6.16.0
           python -m PyInstaller --onefile --windowed --clean --name CUHK-AI-Settings --distpath build/app --workpath build/pyinstaller --specpath build app/settings_app.py
+      - name: Keep production dependencies only
+        shell: pwsh
+        run: |
+          foreach ($name in @('opencli', 'claude-code-router')) {
+            Push-Location ".dependencies/$name"
+            try {
+              npm.cmd prune --omit=dev --ignore-scripts --no-audit --no-fund
+              if ($LASTEXITCODE -ne 0) { throw "Pruning $name failed." }
+            } finally { Pop-Location }
+          }
       - name: Prepare and check installer payload
         shell: pwsh
         run: |
@@ -48,6 +58,7 @@ jobs:
           $pythonLicense = python -c "import pathlib,sys; print(pathlib.Path(sys.base_prefix) / 'LICENSE.txt')"
           Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/nodejs/node/v24.19.0/LICENSE' -OutFile build/NODE-LICENSE.txt
           ./scripts/build-windows-payload.ps1 -OutputDirectory "$PWD/build/payload" -NodeExecutable $node -SettingsExecutable "$PWD/build/app/CUHK-AI-Settings.exe" -NodeLicense "$PWD/build/NODE-LICENSE.txt" -PythonLicense $pythonLicense
+          & $node scripts/dependency-inventory.cjs "$PWD/build/payload/.dependencies"
           & "$PWD/build/payload/runtime/node.exe" "$PWD/build/payload/scripts/check-install.cjs"
           if ($LASTEXITCODE -ne 0) { throw 'Installer payload failed its runtime check.' }
       - name: Install installer compiler

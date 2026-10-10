@@ -40,7 +40,7 @@ foreach ($name in @('opencli', 'claude-code-router')) {
     $source = Join-Path $root ".dependencies\$name"
     $destination = Join-Path $output ".dependencies\$name"
     $null = New-Item -ItemType Directory -Path $destination -Force
-    & robocopy.exe $source $destination /E /XD .git .github /NFL /NDL /NJH /NJS /NP
+    & robocopy.exe $source $destination /E /XD .git .github (Join-Path $source 'extension\node_modules') /NFL /NDL /NJH /NJS /NP
     if ($LASTEXITCODE -ge 8) { throw "Copying $name failed with robocopy exit code $LASTEXITCODE" }
     $global:LASTEXITCODE = 0
 }
