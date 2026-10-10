@@ -7,6 +7,7 @@ const { errorBody } = require("./src/errors.cjs");
 const { responseEvents } = require("./src/responses.cjs");
 const { CuhkProviderRuntime } = require("./src/runtime.cjs");
 const { OpenCliTransport } = require("./src/transport.cjs");
+const { toResponses, toMessage, messageEvents, anthropicError, estimateTokens } = require("./src/anthropic.cjs");
 
 function createRuntime(ctx) {
   const pluginConfig = ctx.pluginConfig && typeof ctx.pluginConfig === "object" ? ctx.pluginConfig : {};
@@ -14,7 +15,7 @@ function createRuntime(ctx) {
   const configPath = pluginConfig.configPath || path.join(bridgeRoot, "config.json");
   const entryPath = pluginConfig.openCliEntryPath || path.join(bridgeRoot, "bin", "cuhk-ai.mjs");
   const statusEntryPath = pluginConfig.openCliStatusEntryPath === false ? null
-    : pluginConfig.openCliStatusEntryPath || path.resolve(bridgeRoot, "..", "cuhk-ai-opencli", "dist", "src", "main.js");
+    : pluginConfig.openCliStatusEntryPath || path.join(bridgeRoot, "bin", "cuhk-opencli.mjs");
   // Conversation-reuse ledger (digests only). Lives under the gitignored runtime state.
   const persistPath = pluginConfig.conversationStatePath || path.join(bridgeRoot, "gateway", "runtime-state", "conversations.json");
   const timeoutSeconds = pluginConfig.timeoutSeconds || 1800;
@@ -64,6 +65,57 @@ module.exports = {
     if (ctx.pluginConfig?.diagnosticPath) {
       fs.mkdirSync(path.dirname(ctx.pluginConfig.diagnosticPath), { recursive: true });
       appendDiagnostic(ctx.pluginConfig.diagnosticPath, { type: "diagnostic_ready" });
+    }
+    // CCR authenticates public plugin routes before invoking these handlers.
+    // Keep Messages native here to preserve metadata, result errors and IDs.
+    for (const messagesPath of ["/v1/messages", "/messages", "/v1/messages/count_tokens", "/messages/count_tokens"]) {
+      ctx.registerGatewayRoute({
+        auth: "gateway", id: `cuhk-messages:${messagesPath}`, method: "POST", path: messagesPath,
+        async handler(request, response, helpers) {
+          let heartbeat;
+          try {
+            const body = await helpers.readJson(request);
+            if (messagesPath.endsWith("/count_tokens")) {
+              helpers.sendJson(response, 200, estimateTokens(body));
+              return;
+            }
+            const canonical = toResponses(body, request.headers);
+            const requestState = { aborted: false };
+            request.once("aborted", () => { requestState.aborted = true; });
+            response.once("close", () => { if (!response.writableEnded) requestState.aborted = true; });
+            await runtime.ensureTransportReady();
+            appendDiagnostic(ctx.pluginConfig?.diagnosticPath, { type: "request", protocol: "anthropic", conversationKey: canonical.prompt_cache_key, body });
+            if (body.stream === true) {
+              heartbeat = setInterval(() => {
+                if (response.destroyed || response.writableEnded) return;
+                if (!response.headersSent) response.writeHead(200, {
+                  "content-type": "text/event-stream; charset=utf-8", "cache-control": "no-cache", connection: "keep-alive"
+                });
+                response.write('event: ping\ndata: {"type":"ping"}\n\n');
+              }, 10000);
+              heartbeat.unref();
+            }
+            const result = toMessage(await runtime.respond(canonical, requestState), body.model);
+            appendDiagnostic(ctx.pluginConfig?.diagnosticPath, { type: "response", protocol: "anthropic", responseId: result.id, stopReason: result.stop_reason, outputTypes: result.content.map(b => b.type) });
+            if (response.destroyed || response.writableEnded) return;
+            if (body.stream === true) {
+              if (!response.headersSent) response.writeHead(200, {
+                "content-type": "text/event-stream; charset=utf-8", "cache-control": "no-cache", connection: "keep-alive"
+              });
+              for (const event of messageEvents(result)) response.write(`event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`);
+              response.end();
+            } else helpers.sendJson(response, 200, result);
+          } catch (error) {
+            appendDiagnostic(ctx.pluginConfig?.diagnosticPath, { type: "error", protocol: "anthropic", code: error.code, message: error.message });
+            ctx.logger.error(error.message);
+            if (response.destroyed || response.writableEnded) return;
+            if (response.headersSent) {
+              response.write(`event: error\ndata: ${JSON.stringify(anthropicError(error))}\n\n`);
+              response.end();
+            } else helpers.sendJson(response, error.status || 500, anthropicError(error));
+          } finally { clearInterval(heartbeat); }
+        }
+      });
     }
     await ctx.registerHttpBackend({
       id: "cuhk-responses",

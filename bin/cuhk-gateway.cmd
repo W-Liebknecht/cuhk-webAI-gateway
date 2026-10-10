@@ -1,2 +1,2 @@
 @echo off
-node "%~dp0cuhk-gateway.cjs" %*
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0node-run.ps1" "%~dp0cuhk-gateway.cjs" %*

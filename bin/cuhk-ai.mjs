@@ -3,6 +3,7 @@
 import { accessSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import bridgePaths from './bridge-paths.cjs';
 
 const args = process.argv.slice(2);
 const fileIndex = args.indexOf('--prompt-file');
@@ -13,11 +14,10 @@ if (fileIndex < 0 || !args[fileIndex + 1]) {
 const promptPath = args[fileIndex + 1];
 try { accessSync(promptPath); }
 catch (error) { console.error(error.message); process.exit(2); }
-const openCliEntry = process.env.CUHK_OPENCLI_ENTRY
-    || fileURLToPath(new URL('../../cuhk-ai-opencli/dist/src/main.js', import.meta.url));
+const openCliEntry = bridgePaths.openCliEntry(fileURLToPath(new URL('..', import.meta.url)));
 try { accessSync(openCliEntry); }
 catch (error) { console.error(`OpenCLI entry is unavailable: ${error.message}`); process.exit(2); }
-const child = spawn(process.execPath, [openCliEntry,
+const child = spawn(process.execPath, [fileURLToPath(new URL('./cuhk-opencli.mjs', import.meta.url)),
     'cuhk-ai', 'ask', ...args, '--format', 'json'], { stdio: 'inherit', shell: false });
 child.on('error', (error) => { console.error(error.message); process.exitCode = 1; });
 child.on('exit', (code) => { process.exitCode = code ?? 1; });

@@ -54,6 +54,35 @@ class SettingsConfigTests(unittest.TestCase):
 
 
 class SettingsLaunchTests(unittest.TestCase):
+    @mock.patch.object(settings_app.subprocess, "Popen")
+    def test_claude_button_launches_its_own_cli_in_selected_folder(self, popen: mock.Mock) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            app = self.make_app(directory)
+            app.launch_gateway_claude()
+        self.assertTrue(app.gateway_enabled.value)
+        app.save.assert_called_once_with()
+        self.assertEqual(popen.call_args.kwargs["cwd"], directory)
+        self.assertIn(str(settings_app.CLAUDE_LAUNCHER), popen.call_args.args[0])
+        self.assertNotIn(str(settings_app.CODEX_LAUNCHER), popen.call_args.args[0])
+
+    def test_both_launch_buttons_fit_the_panel(self) -> None:
+        root = settings_app.tk.Tk()
+        self.addCleanup(root.destroy)
+        with mock.patch.object(settings_app, "load_config", return_value=settings_app.default_config()):
+            settings_app.SettingsApp(root)
+        root.update_idletasks()
+        buttons = []
+        def visit(widget):
+            if isinstance(widget, settings_app.ttk.Button):
+                buttons.append(widget)
+            for child in widget.winfo_children():
+                visit(child)
+        visit(root)
+        launches = [b for b in buttons if "启动 Gateway" in b.cget("text")]
+        self.assertEqual(len(launches), 2)
+        for button in launches:
+            self.assertLessEqual(button.winfo_rooty() + button.winfo_height(), root.winfo_rooty() + root.winfo_height())
+
     def test_launcher_uses_native_current_directory_session_filter(self) -> None:
         launcher = settings_app.CODEX_LAUNCHER.read_text(encoding="utf-8")
 

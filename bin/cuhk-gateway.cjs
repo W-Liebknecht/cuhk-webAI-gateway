@@ -7,6 +7,7 @@ const net = require("node:net");
 const path = require("node:path");
 const { spawn } = require("node:child_process");
 const { cuhkProvider } = require("../gateway/cuhk-provider/src/ccr-registration.cjs");
+const { ensureConfig, primaryCheckout } = require("./bridge-paths.cjs");
 
 const root = path.resolve(__dirname, "..");
 const state = path.join(root, "gateway/runtime-state");
@@ -55,6 +56,7 @@ function resolveCcrRoot(projectRoot = root, environment = process.env) {
   } catch {}
 
   const unique = [...new Set(candidates)];
+  unique.push(path.join(primaryCheckout(projectRoot), ".dependencies/claude-code-router"));
   const found = unique.find((candidate) => fs.existsSync(path.join(candidate, "packages/core/dist/main/server.js")));
   if (found) return found;
   throw new Error(`CCR runtime was not found. Checked: ${unique.join(", ")}`);
@@ -129,6 +131,7 @@ function acquireStartupLock(instanceId) {
 }
 
 async function start() {
+  ensureConfig(root);
   const existing = readControl();
   const existingStatus = await currentStatus(existing);
   if (existingStatus.running) {

@@ -62,6 +62,32 @@ test('silent spinning generation is stopped before it is classified as recoverab
 test('fails early when the submitted user turn never appears', async () => {
     await expect(scenario('', null, 900000)).rejects.toThrow(CommandExecutionError);
 });
+
+test('current send-button Stop label keeps completed earlier bubbles from returning prematurely', async () => {
+    expect(await scenario('<div data-turn="user"></div>' + answer('early bubble')
+        + '<button data-testid="chat-send-button" aria-label="停止生成"></button>', (doc, now) => {
+        if (now === 10000) {
+            doc.querySelector('[data-testid="chat-send-button"]').setAttribute('aria-label', '发送消息');
+            doc.body.insertAdjacentHTML('beforeend', answer('actual final bubble'));
+        }
+    })).toBe('actual final bubble');
+});
+
+test('current send-button Stop control is canceled before empty recovery', async () => {
+    let stopped = false;
+    await expect(scenario('<div data-turn="user"></div>' + empty
+        + '<button data-testid="chat-send-button" aria-label="停止生成"></button>', (doc, now) => {
+        if (now === 1000) doc.querySelector('[data-testid="chat-send-button"]').onclick = event => {
+            stopped = true; event.target.setAttribute('aria-label', '发送消息');
+        };
+    }, 900000)).rejects.toThrow(EmptyResultError);
+    expect(stopped).toBe(true);
+});
+
+test('idle send button is never mistaken for a Stop control', async () => {
+    expect(await scenario('<div data-turn="user"></div>' + answer('finished')
+        + '<button data-testid="chat-send-button" aria-label="发送消息"></button>')).toBe('finished');
+});
 test('fails after one bounded stop attempt when a silent spinner cannot be stopped', async () => {
     await expect(scenario('<div data-turn="user"></div><button data-testid="chat-stop-button"></button>', null, 900000, { user: 0, ai: 0 }, {
         stalledAfterMs: 3000,

@@ -1,8 +1,6 @@
-import { ArgumentError, AuthRequiredError, CommandExecutionError, EmptyResultError } from './_opencli.js';
+import { ArgumentError, AuthRequiredError, CommandExecutionError, EmptyResultError, TurndownService, gfm } from './_opencli.js';
 import fs from 'node:fs';
 import path from 'node:path';
-import TurndownService from 'turndown';
-import { gfm } from 'turndown-plugin-gfm';
 
 const markdown = new TurndownService({ codeBlockStyle: 'fenced', headingStyle: 'atx' });
 markdown.use(gfm);
@@ -61,6 +59,7 @@ export const CUHK_AI_URL = 'https://ai.cuhk.edu.cn/chat/';
 export const COMPOSER_SELECTOR = '[data-testid="chat-input"]';
 export const SEND_BUTTON_SELECTOR = '[data-testid="chat-send-button"]';
 export const USER_TURN_SELECTOR = '[data-turn="user"]';
+const STOP_BUTTON_SELECTOR = '[data-testid="chat-stop-button"], [data-testid="chat-send-button"][aria-label="停止生成"], [data-testid="chat-send-button"][aria-label="Stop generating"]';
 export const AI_TURN_SELECTOR = '[data-turn="ai"]';
 
 export async function getContextUsage(page) {
@@ -256,6 +255,15 @@ export async function setThinking(page, model, value) {
         throw new CommandExecutionError(`Thinking options for ${model.display} could not be opened.`);
     }
     await page.evaluate((token) => {
+        const box = document.querySelector(`[data-cuhk-thinking-trigger=${JSON.stringify(token)}]`);
+        // Some persistent background tabs acknowledge CDP input without
+        // delivering the key/pointer event to this React select. Its documented
+        // keyboard interaction still works through a bubbling DOM key event.
+        // Only open a closed menu: never toggle one that the click already opened.
+        if (box && box.getAttribute('aria-expanded') !== 'true') {
+            box.focus();
+            box.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', code: 'Space', bubbles: true, cancelable: true }));
+        }
         document.querySelector(`[data-cuhk-thinking-trigger=${JSON.stringify(token)}]`)
             ?.removeAttribute('data-cuhk-thinking-trigger');
     }, triggerToken).catch(() => {});
@@ -307,10 +315,17 @@ export async function setThinking(page, model, value) {
             await closeModelDialog(page);
             throw new CommandExecutionError(`Thinking option ${thinking.name} could not be selected for ${model.display}.`);
         }
-        await page.evaluate((token) => {
-            document.querySelector(`[data-cuhk-thinking-option=${JSON.stringify(token)}]`)
+        await page.evaluate((input) => {
+            const option = document.querySelector(`[data-cuhk-thinking-option=${JSON.stringify(input.token)}]`);
+            const box = Array.from(document.querySelectorAll('[role="dialog"] [role="combobox"]'))
+                .find(candidate => (candidate.getAttribute('aria-label') || '').includes(input.display));
+            if (option && (box?.innerText || '').trim() !== input.label) {
+                option.focus();
+                option.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true, cancelable: true }));
+            }
+            document.querySelector(`[data-cuhk-thinking-option=${JSON.stringify(input.token)}]`)
                 ?.removeAttribute('data-cuhk-thinking-option');
-        }, optionToken).catch(() => {});
+        }, { token: optionToken, display: model.display, label: selected.label }).catch(() => {});
     }
     let confirmed = false;
     for (let attempt = 0; attempt < 20; attempt++) {
@@ -494,7 +509,7 @@ export async function sendMessage(page, prompt) {
 export async function stopActiveGeneration(page) {
     try {
         await page.evaluate(`(() => {
-            const button = document.querySelector('[data-testid="chat-stop-button"]');
+            const button = document.querySelector('${STOP_BUTTON_SELECTOR}');
             if (!button || button.disabled) return false;
             button.click();
             return true;
@@ -618,7 +633,7 @@ export async function waitForResponse(page, baseline, prompt, timeoutMs, options
                 // including a trailing empty placeholder. Search the whole new
                 // response group, never fall back to the previous user's answer.
                 const group = lastUser ? aiTurns.filter(turn => lastUser.compareDocumentPosition(turn) & 4) : [];
-                const stopVisible = !!document.querySelector('[data-testid="chat-stop-button"]');
+                const stopVisible = !!document.querySelector('${STOP_BUTTON_SELECTOR}');
                 const responseStates = group.map(turn => {
                     const bodies = Array.from(turn.querySelectorAll('.prose-code-custom'));
                     const plain = bodies.map(body => body.textContent || '').join('').trim();

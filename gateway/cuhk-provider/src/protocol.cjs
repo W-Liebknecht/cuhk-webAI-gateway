@@ -247,13 +247,20 @@ function adaptToolsForModel(tools, style) {
 function assertSchemaShape(schema, depth, label) {
   if (depth > MAX_SCHEMA_DEPTH) throw new RequestError(`${label} exceeds maximum nesting depth.`);
   if (!isObject(schema)) throw new RequestError(`${label} must be an object schema.`);
-  const supported = new Set(["type", "description", "title", "default", "enum", "properties", "required", "additionalProperties", "items", "minimum", "maximum", "minLength", "maxLength", "minItems", "maxItems", "encrypted"]);
+  const supported = new Set(["$schema", "type", "description", "title", "default", "enum", "properties", "propertyNames", "required", "additionalProperties", "allOf", "format", "items", "minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum", "pattern", "minLength", "maxLength", "minItems", "maxItems", "encrypted"]);
   for (const key of Object.keys(schema)) {
     if (!supported.has(key)) throw new RequestError(`${label} uses unsupported schema keyword: ${key}`);
   }
-  if (schema.additionalProperties !== undefined && typeof schema.additionalProperties !== "boolean") {
-    throw new RequestError(`${label}.additionalProperties must be boolean.`);
+  if (schema.additionalProperties !== undefined && typeof schema.additionalProperties !== "boolean" && !isObject(schema.additionalProperties)) {
+    throw new RequestError(`${label}.additionalProperties must be boolean or an object schema.`);
   }
+  if (isObject(schema.additionalProperties)) assertSchemaShape(schema.additionalProperties, depth + 1, `${label}.additionalProperties`);
+  if (schema.propertyNames !== undefined) assertSchemaShape(schema.propertyNames, depth + 1, `${label}.propertyNames`);
+  if (schema.allOf !== undefined) {
+    if (!Array.isArray(schema.allOf) || !schema.allOf.length) throw new RequestError(`${label}.allOf must be a nonempty array.`);
+    schema.allOf.forEach((child, index) => assertSchemaShape(child, depth + 1, `${label}.allOf[${index}]`));
+  }
+  if (schema.format !== undefined && schema.format !== "uri") throw new RequestError(`${label} uses unsupported schema format: ${schema.format}`);
   if (schema.required !== undefined && (!Array.isArray(schema.required) || schema.required.some((name) => typeof name !== "string"))) {
     throw new RequestError(`${label}.required must be an array of names.`);
   }
@@ -266,18 +273,29 @@ function assertSchemaShape(schema, depth, label) {
     for (const [name, child] of Object.entries(schema.properties)) assertSchemaShape(child, depth + 1, `${label}.${name}`);
   }
   if (schema.items !== undefined) assertSchemaShape(schema.items, depth + 1, `${label}.items`);
+  if (schema.pattern !== undefined) {
+    if (typeof schema.pattern !== "string") throw new RequestError(`${label}.pattern must be a string.`);
+    try { new RegExp(schema.pattern); } catch { throw new RequestError(`${label}.pattern is invalid.`); }
+  }
+  for (const key of ["exclusiveMinimum", "exclusiveMaximum"]) {
+    if (schema[key] !== undefined && (typeof schema[key] !== "number" || !Number.isFinite(schema[key]))) throw new RequestError(`${label}.${key} must be a number.`);
+  }
   if (schema.enum !== undefined && !Array.isArray(schema.enum)) throw new RequestError(`${label}.enum must be an array.`);
 }
 
 function compactSchema(schema) {
   const out = {};
-  for (const key of ["type", "description", "enum", "required", "additionalProperties", "minimum", "maximum", "minLength", "maxLength", "minItems", "maxItems"]) {
+  for (const key of ["type", "description", "enum", "required", "additionalProperties", "minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum", "pattern", "minLength", "maxLength", "minItems", "maxItems"]) {
     if (schema[key] !== undefined) out[key] = schema[key];
   }
   if (isObject(schema.properties)) {
     out.properties = Object.fromEntries(Object.entries(schema.properties).map(([key, value]) => [key, compactSchema(value)]));
   }
   if (isObject(schema.items)) out.items = compactSchema(schema.items);
+  if (isObject(schema.additionalProperties)) out.additionalProperties = compactSchema(schema.additionalProperties);
+  if (isObject(schema.propertyNames)) out.propertyNames = compactSchema(schema.propertyNames);
+  if (Array.isArray(schema.allOf)) out.allOf = schema.allOf.map(compactSchema);
+  if (schema.format !== undefined) out.format = schema.format;
   return out;
 }
 
@@ -450,10 +468,15 @@ function parseToolPayload(payload, tools) {
   return { tool, arguments: value.arguments, argumentJson };
 }
 
-function parseScriptPayload(script, tools) {
-  const execTool = tools.find((candidate) => candidate.protocolName === "exec_command" || candidate.protocolName === "functions__exec_command");
+function parseScriptPayload(script, tools, language = "powershell") {
+  const execTool = tools.find((candidate) => candidate.protocolName === "exec_command" || candidate.protocolName === "functions__exec_command")
+    || tools.find(candidate => candidate.clientName === "Bash" && candidate.schema.properties?.command?.type === "string");
   if (!execTool) return null;
-  const argumentsValue = { cmd: String(script || "").trim() };
+  const source = String(script || "").trim();
+  const argumentsValue = execTool.clientName === "Bash"
+    ? { command: /^(?:powershell|pwsh|ps1)$/i.test(language)
+      ? `powershell.exe -NoProfile -NonInteractive -EncodedCommand ${Buffer.from(source, "utf16le").toString("base64")}` : source }
+    : { cmd: source };
   const argumentJson = JSON.stringify(argumentsValue);
   if (Buffer.byteLength(argumentJson, "utf8") > MAX_ARGUMENT_BYTES) throw new ProtocolError("PowerShell script is too large.");
   const validationError = validateValue(argumentsValue, execTool.schema, "$", 0);
@@ -485,7 +508,8 @@ function parseToolCall(text, tools, options = {}) {
         ? [wholeScript]
         : (!options.scriptStrict && options.allowScriptCommentary ? [...raw.matchAll(FENCED_SCRIPT_BLOCK)] : []);
       for (const match of scriptMatches) {
-        const parsedScript = parseScriptPayload(match[1], tools);
+        const language = /```(\w+)/.exec(match[0])?.[1] || "powershell";
+        const parsedScript = parseScriptPayload(match[1], tools, language);
         if (parsedScript) return parsedScript;
       }
     }
@@ -503,13 +527,27 @@ function parseToolCall(text, tools, options = {}) {
 
 function validateValue(value, schema, path, depth) {
   if (depth > MAX_SCHEMA_DEPTH) return `${path} exceeds maximum nesting depth`;
+  for (const child of schema.allOf || []) {
+    const error = validateValue(value, child, path, depth + 1);
+    if (error) return error;
+  }
   if (Array.isArray(schema.enum) && !schema.enum.some((candidate) => JSON.stringify(canonicalize(candidate)) === JSON.stringify(canonicalize(value)))) return `${path} is not an allowed enum value`;
   const type = schema.type;
-  if (type === "object" || schema.properties) {
+  if (type === "object" || (type === undefined && isObject(value))) {
     if (!isObject(value)) return `${path} must be an object`;
     const required = Array.isArray(schema.required) ? schema.required : [];
     for (const name of required) if (!Object.hasOwn(value, name)) return `${path}.${name} is required`;
     const properties = isObject(schema.properties) ? schema.properties : {};
+    for (const [name, childValue] of Object.entries(value)) {
+      if (schema.propertyNames) {
+        const error = validateValue(name, schema.propertyNames, `${path} property name`, depth + 1);
+        if (error) return error;
+      }
+      if (!Object.hasOwn(properties, name) && isObject(schema.additionalProperties)) {
+        const error = validateValue(childValue, schema.additionalProperties, `${path}.${name}`, depth + 1);
+        if (error) return error;
+      }
+    }
     if (schema.additionalProperties === false) {
       const extra = Object.keys(value).find((name) => !Object.hasOwn(properties, name));
       if (extra) return `${path}.${extra} is not allowed`;
@@ -520,7 +558,7 @@ function validateValue(value, schema, path, depth) {
         if (error) return error;
       }
     }
-  } else if (type === "array") {
+  } else if (type === "array" || (type === undefined && Array.isArray(value))) {
     if (!Array.isArray(value)) return `${path} must be an array`;
     if (Number.isInteger(schema.minItems) && value.length < schema.minItems) return `${path} has too few items`;
     if (Number.isInteger(schema.maxItems) && value.length > schema.maxItems) return `${path} has too many items`;
@@ -530,8 +568,13 @@ function validateValue(value, schema, path, depth) {
         if (error) return error;
       }
     }
-  } else if (type === "string") {
+  } else if (type === "string" || (type === undefined && typeof value === "string")) {
     if (typeof value !== "string") return `${path} must be a string`;
+    if (schema.pattern !== undefined && !new RegExp(schema.pattern).test(value)) return `${path} does not match pattern`;
+    if (schema.format === "uri") {
+      if (/[\s\u0000-\u001f\u007f<>"{}|\\^`]/u.test(value) || /%(?![0-9a-f]{2})/iu.test(value)) return `${path} must be an absolute URI`;
+      try { new URL(value); } catch { return `${path} must be an absolute URI`; }
+    }
     if (Number.isInteger(schema.minLength) && value.length < schema.minLength) return `${path} is too short`;
     if (Number.isInteger(schema.maxLength) && value.length > schema.maxLength) return `${path} is too long`;
   } else if (type === "integer" && !Number.isInteger(value)) return `${path} must be an integer`;
@@ -541,6 +584,8 @@ function validateValue(value, schema, path, depth) {
   if (typeof value === "number") {
     if (typeof schema.minimum === "number" && value < schema.minimum) return `${path} is below minimum`;
     if (typeof schema.maximum === "number" && value > schema.maximum) return `${path} is above maximum`;
+    if (typeof schema.exclusiveMinimum === "number" && value <= schema.exclusiveMinimum) return `${path} is not above exclusive minimum`;
+    if (typeof schema.exclusiveMaximum === "number" && value >= schema.exclusiveMaximum) return `${path} is not below exclusive maximum`;
   }
   return null;
 }

@@ -1,35 +1,27 @@
-# Local configuration and generated state
+# --- dependencies ---------------------------------------------------------
+node_modules/
+.dependencies/
+dist/
 config.json
+
+# --- local runtime state (never commit; see README "runtime-state") --------
 gateway/runtime-state/
 gateway/host-state/
 
-# External dependencies and research checkouts
-node_modules/
+# --- read-only research checkouts (pinned revisions; see research/README.md)
+research/anyAIProxyAPI/
 research/claude-code-router/
-cuhk-ai-opencli/
+research/claude-web-api/
 
-# Python / Node caches
+# --- caches / build artifacts ---------------------------------------------
 __pycache__/
 *.py[cod]
 .pytest_cache/
-.ruff_cache/
-coverage/
 
-# Logs, temporary files, and editor state
-*.log
-*.tmp
-.env
-.env.*
-!.env.example
-.vscode/
-.idea/
+# --- local git worktrees (kept inside the workspace) ----------------------
+.worktrees/
+
+# --- OS / editor ----------------------------------------------------------
 Thumbs.db
 Desktop.ini
 .DS_Store
-
-
-# Local project memory and worktrees
-memory/
-.worktrees/
-research/anyAIProxyAPI/
-research/claude-web-api/

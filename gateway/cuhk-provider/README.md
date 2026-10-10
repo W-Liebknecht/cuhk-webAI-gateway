@@ -1,5 +1,7 @@
 # CUHK CCR provider
 
+Current user-facing capability and acceptance documentation lives in [Claude Code Gateway](../../docs/claude-code-gateway.md); installation and release limitations are in [the project README](../../README.md). The provider supports the verified Responses and Anthropic Messages subsets. The notes below include historical implementation and smoke-test records; dated counts and machine paths are not current installation instructions.
+
 This directory is the first CCR vertical slice for the CUHK AI gateway. It is a trusted local wrapper plugin for the pinned CCR revision `cbe5f7bb3b3511ac31274559f2e9f387cab6fe40`.
 
 Implemented surfaces:
@@ -12,7 +14,7 @@ Implemented surfaces:
 - `TOOL PROTOCOL v1`: retained as a compatibility parser for existing raw `<tool_call>` envelopes, model-profile fenced JSON, and GLM's narrow PowerShell bridge. Calls still receive catalog fingerprinting, schema validation, loop bounds, duplicate-result rejection, and catalog refresh.
 - Bounded arbitration: invalid/ambiguous responses and duplicate no-progress actions receive a structured `GATEWAY CONTROL v1` fact report, not an imperative repair script. The web Agent may correct that report and finalize. Two control turns without real progress terminate with a protocol error instead of looping forever.
 - Model profiles: generic GPT-class models keep the generic compatibility protocol. `glm*`, `deepseek*`, `kimi*`, `qwen3.8-27b`, `seed2.1pro`, `gemini3.8flash`, `gpt6sol`, and `gpt6luna` selections receive an exact model identifier and a shared primary-Agent contract. Profiles also receive short tool names (`exec_command` / `apply_patch` / `wait`), stripped-down web context without the host model persona, tolerant fenced-JSON parsing with legacy aliases, and decision reminders. Only GLM enables the fenced PowerShell compatibility bridge; all other dedicated profiles remain JSON-tool-only. Qwen's prompt separates the school's fixed platform tools from the Gateway catalog and forbids provider-native tool objects; Seed has the same platform-tool separation, while Gemini and GPT 6 are instructed not to emit provider-native function-call objects because this browser bridge consumes text JSON.
-- Codex title/summary jobs are isolated metadata operations: they receive no Agent identity or host tools, discard environment-context noise, always start a disposable web conversation, and never reuse or update the foreground Agent conversation ledger.
+- Background title/summary requests are metadata operations and must remain isolated from the foreground task. Current interactive Claude title jobs use bounded local generation without sending a new instruction to the school page; see the current acceptance document for the verified scope.
 - Codex `apply_patch`: custom tool to `virtual_apply_patch` protocol function and back to `custom_tool_call`.
 - Codex 0.155 Code Mode: `additional_tools` namespaces, structured virtual
   `exec_command`/`apply_patch`, segmented custom-tool results, full-history replay,
@@ -27,7 +29,7 @@ Register `src/ccr-registration.cjs`'s provider in CCR `Providers` and install th
 Run the offline contract suite with the repository's Node runtime:
 
 ```powershell
-npm test
+& 'D:\Projects\tools\node-v24.19.0-win-x64\npm.cmd' test
 ```
 
 The suite uses a fake transport and does not spend CUHK quota. A live smoke run should only be performed when the panel's Gateway switch is enabled and Chrome is logged in.

@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "nodeMinimumMajor": 22,
+  "opencli": {
+    "repository": "https://github.com/jackwener/opencli.git",
+    "revision": "8271afc67e8504bda94c147f446ee29775d08274",
+    "version": "1.8.8",
+    "license": "Apache-2.0"
+  },
+  "claude-code-router": {
+    "repository": "https://github.com/musistudio/claude-code-router.git",
+    "revision": "cbe5f7bb3b3511ac31274559f2e9f387cab6fe40",
+    "license": "MIT"
+  }
+}

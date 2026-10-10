@@ -27,7 +27,8 @@ test("CCR wrapper contract registers the required loopback gateway routes", asyn
   assert.deepEqual(routes.map((route) => `${route.method} ${route.path}`).sort(), [
     "GET /models",
     "GET /plugins/cuhk/health/ready",
-    "GET /v1/models"
+    "GET /v1/models",
+    "POST /messages", "POST /messages/count_tokens", "POST /v1/messages", "POST /v1/messages/count_tokens"
   ]);
   assert.equal(backends[0].host, "127.0.0.1");
   assert.equal(backends[0].port, 3462);

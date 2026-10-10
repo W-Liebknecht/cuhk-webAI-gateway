@@ -1,6 +1,6 @@
 {
-  "gatewayEnabled": false,
-  "model": "gpt5.6sol",
-  "thinking": "medium",
+  "gatewayEnabled": true,
+  "model": "glm5.3flash",
+  "thinking": "low",
   "workdir": ""
 }

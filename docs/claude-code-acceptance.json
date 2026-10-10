@@ -1,0 +1,125 @@
+{
+  "date": "2026-10-09",
+  "branch": "feature/claude-code-gateway",
+  "clients": {
+    "claudeCode": "2.1.277",
+    "codex": "0.160.0"
+  },
+  "offline": {
+    "provider": 172,
+    "adapter": 45,
+    "panel": 10,
+    "total": 227,
+    "nativeCliTurns": 8
+  },
+  "online": [
+    {
+      "case": "qwen-tools",
+      "passed": true,
+      "tools": [
+        "Bash",
+        "Read",
+        "Write",
+        "Edit",
+        "Read"
+      ]
+    },
+    {
+      "case": "glm-tools",
+      "passed": true,
+      "tools": [
+        "Bash",
+        "Read",
+        "Write",
+        "Edit",
+        "Read"
+      ]
+    },
+    {
+      "case": "qwen-recovery",
+      "passed": true,
+      "tools": [
+        "Read",
+        "Bash",
+        "Read"
+      ]
+    },
+    {
+      "case": "anthropic-api",
+      "passed": true
+    },
+    {
+      "case": "codex",
+      "passed": true
+    },
+    {
+      "case": "claude-interrupt",
+      "passed": true
+    },
+    {
+      "case": "claude-isolation",
+      "passed": true
+    },
+    {
+      "case": "claude-launcher",
+      "passed": true
+    },
+    {
+      "case": "codex-launcher",
+      "passed": true
+    },
+    {
+      "case": "context",
+      "passed": true,
+      "contextWindow": 100000
+    },
+    {
+      "case": "svg",
+      "passed": true,
+      "tools": [
+        "Write",
+        "Read"
+      ]
+    },
+    {
+      "case": "svg-replay",
+      "passed": true,
+      "tools": [
+        "Read",
+        "Write",
+        "Read"
+      ],
+      "contextWindow": 100000
+    }
+  ],
+  "artifact": {
+    "path": "artifacts/pelican-bicycle.svg",
+    "bytes": 8467,
+    "sha256": "ad6097672144a2a584b9d38cd15bbc6d99c3e44c4fd6990ac1478dc0f5585ad2",
+    "generatedBy": "Claude Code -> Gateway -> local Qwen3.8 27B",
+    "nativeByteExactReplay": true,
+    "width": 960,
+    "height": 640,
+    "animationElements": 15,
+    "selfContained": true,
+    "distinctFrames": true,
+    "frames": [
+      {
+        "seconds": 0,
+        "file": "pelican-bicycle-frame-0.png",
+        "sha256": "57268fbf40c73f5d63edf15aad3f02557e5b5c7620b5224c1424997bc0d5d264"
+      },
+      {
+        "seconds": 0.37,
+        "file": "pelican-bicycle-frame-1.png",
+        "sha256": "e8707145ae3c7a0e2f306ce0d2b4da6456de7da3770fe8de9518dd366ec76d46"
+      },
+      {
+        "seconds": 0.83,
+        "file": "pelican-bicycle-frame-2.png",
+        "sha256": "213e3345ddaab2463e8fdc0fbe892c2d8c363a2d737ca6299dc7b600c37c1cf3"
+      }
+    ]
+  },
+  "scope": "Verified subset and limitations are documented in claude-code-gateway.md"
+}

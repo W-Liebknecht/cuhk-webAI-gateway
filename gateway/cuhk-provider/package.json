@@ -7,7 +7,7 @@
   "main": "index.cjs",
   "scripts": {
     "test": "node --test test/*.test.cjs",
-    "check": "node --check index.cjs && node --check src/runtime.cjs && node --check src/protocol.cjs && node --check src/decision-protocol.cjs && node --check src/transport.cjs && node --check src/model-profiles.cjs"
+    "check": "node --check index.cjs && node --check src/anthropic.cjs && node --check src/runtime.cjs && node --check src/protocol.cjs && node --check src/decision-protocol.cjs && node --check src/transport.cjs && node --check src/model-profiles.cjs"
   },
   "engines": {
     "node": ">=22"

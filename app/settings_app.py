@@ -14,6 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 CONFIG_PATH = ROOT / "config.json"
 OPENCLI = ROOT / "bin" / "opencli.cmd"
 CODEX_LAUNCHER = ROOT / "bin" / "cuhk-codex-launch.ps1"
+CLAUDE_LAUNCHER = ROOT / "bin" / "cuhk-claude-launch.ps1"
 
 MODELS = {
     "glm5.3flash": {"label": "GLM 5.3 Flash（本地版）", "thinking": ["low", "high", "max"]},
@@ -91,7 +92,7 @@ class SettingsApp:
     def __init__(self, root: tk.Tk) -> None:
         self.root = root
         self.root.title("CUHK AI 控制面板")
-        self.root.geometry("520x410")
+        self.root.geometry("520x460")
         self.root.resizable(False, False)
 
         style = ttk.Style(root)
@@ -152,6 +153,11 @@ class SettingsApp:
             text="启动 Gateway Codex CLI",
             command=self.launch_gateway_codex,
         ).pack(fill="x", pady=(8, 10))
+        ttk.Button(
+            frame,
+            text="启动 Gateway Claude Code CLI",
+            command=self.launch_gateway_claude,
+        ).pack(fill="x", pady=(0, 10))
         ttk.Label(frame, textvariable=self.status, style="Status.TLabel").pack(anchor="w")
 
         self._refresh_thinking()
@@ -240,6 +246,12 @@ class SettingsApp:
             self.status.set(f"检查失败：{error}")
 
     def launch_gateway_codex(self) -> None:
+        self._launch_gateway(CODEX_LAUNCHER, "Codex")
+
+    def launch_gateway_claude(self) -> None:
+        self._launch_gateway(CLAUDE_LAUNCHER, "Claude Code")
+
+    def _launch_gateway(self, launcher: Path, client: str) -> None:
         try:
             self.gateway_enabled.set(True)
             self.save()
@@ -251,12 +263,12 @@ class SettingsApp:
                     "-ExecutionPolicy",
                     "Bypass",
                     "-File",
-                    str(CODEX_LAUNCHER),
+                    str(launcher),
                 ],
                 cwd=workdir,
                 creationflags=getattr(subprocess, "CREATE_NEW_CONSOLE", 0),
             )
-            self.status.set(f"已打开 Gateway CLI · {workdir}")
+            self.status.set(f"已打开 Gateway {client} CLI · {workdir}")
         except OSError as error:
             messagebox.showerror("启动失败", str(error))
 

@@ -1,0 +1,9 @@
+# Preserve the generated SVG's verified bytes across Windows checkouts.
+artifacts/*.svg text eol=lf
+
+# Source releases omit local configuration, private handoff notes and test data.
+config.json export-ignore
+memory/ export-ignore
+.worktrees/ export-ignore
+gateway/runtime-state/ export-ignore
+gateway/host-state/ export-ignore

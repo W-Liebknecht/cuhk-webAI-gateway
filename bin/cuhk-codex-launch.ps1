@@ -4,6 +4,8 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $bridgeRoot = Split-Path -Parent $PSScriptRoot
+. (Join-Path $PSScriptRoot 'runtime.ps1')
+Initialize-CuhkConfig $bridgeRoot
 $configPath = Join-Path $bridgeRoot 'config.json'
 $codexHome = Join-Path $bridgeRoot 'gateway\runtime-state\codex-home'
 $gatewayCommand = Join-Path $PSScriptRoot 'cuhk-gateway.cmd'

@@ -1,6 +1,7 @@
 $ErrorActionPreference = 'Stop'
 
 $bridgeRoot = Split-Path -Parent $PSScriptRoot
+. (Join-Path $PSScriptRoot 'runtime.ps1')
 $codexHome = Join-Path $bridgeRoot 'gateway\runtime-state\codex-home'
 $null = New-Item -ItemType Directory -Force -Path $codexHome
 $env:CODEX_HOME = $codexHome
@@ -47,12 +48,7 @@ try {
     $launchPayload = @{ args = @($providerArgs + $args); gatewayPort = $gatewayPort }
     $encodedArgs = ConvertTo-Json -InputObject $launchPayload -Compress -Depth 4
     [IO.File]::WriteAllText($argumentFile, $encodedArgs, [Text.UTF8Encoding]::new($false))
-    $nodeCommand = Get-Command node -CommandType Application -ErrorAction SilentlyContinue
-    $bundledNode = Join-Path $env:USERPROFILE '.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe'
-    $nodeExecutable = if ($nodeCommand) { $nodeCommand.Source } elseif (Test-Path -LiteralPath $bundledNode) { $bundledNode } else { $null }
-    if (-not $nodeExecutable) {
-        throw 'Node.js was not found. Install Node.js or add node.exe to PATH.'
-    }
+    $nodeExecutable = Get-CuhkNode
     & $nodeExecutable (Join-Path $PSScriptRoot 'cuhk-codex-client.cjs') $argumentFile
     $clientExit = $LASTEXITCODE
 } finally {

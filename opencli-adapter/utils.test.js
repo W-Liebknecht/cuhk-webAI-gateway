@@ -90,7 +90,7 @@ describe('CUHK AI model configuration', () => {
         expect(() => resolveThinking('high', resolveModel('glm5.3'))).toThrow(/not available/);
     });
 
-    it('uses browser clicks to open and select a thinking option by stable ordinal', async () => {
+    it.each([false, true])('selects a thinking option by stable ordinal (acknowledged input lost: %s)', async (lostInput) => {
         const display = 'GLM 5.3 Flash（本地版）';
         const dom = new JSDOM(`
             <button aria-haspopup="dialog" aria-label="${display}"></button>
@@ -110,7 +110,9 @@ describe('CUHK AI model configuration', () => {
         const combo = dom.window.document.querySelector('[role="combobox"]');
         const options = Array.from(dom.window.document.querySelectorAll('[role="option"]'));
         combo.addEventListener('click', () => combo.setAttribute('aria-expanded', 'true'));
+        combo.addEventListener('keydown', () => combo.setAttribute('aria-expanded', 'true'));
         for (const option of options) {
+            option.addEventListener('keydown', event => { if (event.key === 'Enter') option.click(); });
             option.addEventListener('click', () => {
                 options.forEach((candidate) => {
                     candidate.setAttribute('aria-selected', String(candidate === option));
@@ -125,7 +127,7 @@ describe('CUHK AI model configuration', () => {
             click: vi.fn(async (selector) => {
                 const target = dom.window.document.querySelector(selector);
                 if (!target) throw new Error('target not found');
-                target.click();
+                if (!lostInput) target.click();
             }),
             evaluate: async (source, ...args) => {
                 if (typeof source === 'string') return dom.window.eval(source);

@@ -194,7 +194,7 @@ class CuhkProviderRuntime {
     const key = conversationKeyOf(body);
     let metadata = {};
     try { metadata = JSON.parse(body.client_metadata?.['x-codex-turn-metadata'] || '{}'); } catch {}
-    const systemSideRequest = metadata.thread_source === 'system';
+    const systemSideRequest = metadata.thread_source === 'system' || body.client_metadata?.cuhk_auxiliary === 'session-title';
     // Tool results are continuations of the session that already owns the sole
     // browser slot, not new contenders for that slot. Resolve them before the
     // background-request admission wait; otherwise a system title/summary job
@@ -747,6 +747,13 @@ class CuhkProviderRuntime {
 function extractCompactEnvironment(history) {
   for (const item of history) {
     const text = String(item?.text || "");
+    // Claude Code supplies its environment as a Markdown system block rather
+    // than Codex's XML. Retain cwd/shell when compacting away the host persona.
+    const claudeCwd = /^\s*- Primary working directory:\s*(.+)$/im.exec(text)?.[1]?.trim();
+    if (claudeCwd) {
+      const claudeShell = /^\s*- Shell:\s*(.+)$/im.exec(text)?.[1]?.trim();
+      return `cwd: ${claudeCwd}${claudeShell ? `; shell: ${claudeShell}` : ""}`;
+    }
     const match = /<environment_context>([\s\S]*?)<\/environment_context>/iu.exec(text);
     if (!match) continue;
     const block = match[1];
@@ -777,8 +784,9 @@ function compactTaskContext(history) {
 
 function localSystemMetadataResponse(history) {
   const source = (history || []).map((item) => String(item?.text || "")).join("\n");
-  const embedded = /User prompt:\s*([\s\S]*)$/iu.exec(source)?.[1] || "";
-  const titleRequest = /(?:task title|single-line title|生成.{0,8}标题|任务标题)/iu.test(source);
+  const claudeSubject = /<session>\s*([\s\S]*?)\s*<\/session>/iu.exec(source)?.[1];
+  const embedded = claudeSubject || /User prompt:\s*([\s\S]*)$/iu.exec(source)?.[1] || "";
+  const titleRequest = Boolean(claudeSubject) || /(?:task title|single-line title|生成.{0,8}标题|任务标题)/iu.test(source);
   if (!titleRequest) return "本地元数据";
 
   let subject = embedded

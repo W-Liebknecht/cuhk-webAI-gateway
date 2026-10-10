@@ -829,8 +829,8 @@ test("an image task keeps its vision model through a tool continuation", async (
 test("unsupported schema constraints fail before an upstream request", async () => {
   const { instance, transport } = runtime([]);
   const constrained = structuredClone(echoTool);
-  constrained.parameters.properties.value.pattern = "^a$";
-  await assert.rejects(instance.respond({ input: "echo", tools: [constrained] }), /unsupported schema keyword: pattern/);
+  constrained.parameters.properties.value.uniqueItems = true;
+  await assert.rejects(instance.respond({ input: "echo", tools: [constrained] }), /unsupported schema keyword: uniqueItems/);
   assert.equal(transport.calls.length, 0);
 });
 

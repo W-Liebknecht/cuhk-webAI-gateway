@@ -1,8 +1,7 @@
-# Security and privacy
+# 安全问题反馈
 
-This project is designed for a trusted local Windows environment. Do not expose the local Gateway to a LAN or the public internet.
+本项目会使用已登录的浏览器、Gateway 本地凭据和本地 CLI 工具。如果发现凭据泄露、越权工具执行、跨会话内容泄露或可从网络访问本地 Gateway 等问题，请先使用 GitHub 仓库的 **Security → Report a vulnerability** 私下报告。若该入口尚未启用，请先开一个不包含复现细节的 Issue，请维护者提供私密联系方式。
 
-Never commit `config.json`, `.env` files, `gateway/runtime-state`, `gateway/host-state`, browser profiles, cookies, SSO artifacts, network captures, or exported conversations. If credentials or session data are committed accidentally, revoke them first and then remove them from Git history before sharing the repository.
+报告中请说明受影响版本或提交、影响范围和最小复现步骤。不要在公开 Issue 中粘贴学校账号、Cookie、Gateway key、私人对话、完整运行日志或用户项目文件。维护者会按可用时间确认和处理；目前没有固定响应时限或安全支持期限。
 
-The browser login is intentionally owned by Chrome. The bridge should receive only rendered page content and explicit user-selected local attachments.
-
+正式安装包尚未发布。当前开发状态、运行依赖和已知限制见 [README](README.md)。

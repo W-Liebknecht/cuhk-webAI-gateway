@@ -3,6 +3,7 @@ const fs = require('node:fs');
 const http = require('node:http');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
+const { codexExecutable } = require('./cli-discovery.cjs');
 // Avoid cmd.exe re-parsing multiline prompts. The ephemeral relay attaches CLI
 // ownership to requests; it does not log content or credentials.
 const payload = JSON.parse(fs.readFileSync(process.argv[2], 'utf8').replace(/^\uFEFF/, ''));
@@ -10,11 +11,7 @@ const args = Array.isArray(payload) ? payload : payload.args;
 const gatewayPort = Array.isArray(payload) ? 3460 : Number(payload.gatewayPort);
 if (!Array.isArray(args) || !Number.isInteger(gatewayPort) || gatewayPort < 1 || gatewayPort > 65535) throw new Error('Invalid CUHK Gateway launch payload.');
 fs.unlinkSync(process.argv[2]);
-const root = path.join(process.env.LOCALAPPDATA, 'OpenAI', 'Codex', 'bin');
-const candidates = fs.readdirSync(root, { recursive: true })
-  .filter(p => path.basename(p).toLowerCase() === 'codex.exe')
-  .map(p => path.join(root, p)).sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs);
-if (!candidates.length) throw new Error('Codex executable not found.');
+const executable = codexExecutable();
 const relay = http.createServer(async (req, res) => {
   try {
     const chunks = [];
@@ -38,7 +35,7 @@ const relay = http.createServer(async (req, res) => {
 });
 relay.listen(0, '127.0.0.1', () => {
   const base = `model_providers.cuhk_gateway.base_url="http://127.0.0.1:${relay.address().port}/v1"`;
-  const child = spawn(candidates[0], ['-c', base, ...args], { stdio: 'inherit', windowsHide: true, shell: false });
+  const child = spawn(executable, ['-c', base, ...args], { stdio: 'inherit', windowsHide: true, shell: false });
   process.on('SIGINT', () => {});
   child.on('error', error => { console.error(error.message); process.exit(1); });
   child.on('exit', code => process.exit(code ?? 1));
