@@ -38,7 +38,7 @@ Codex CLI / Claude Code CLI
 
 Codex CLI 与 Claude Code CLI 的双入口、Qwen/GLM 工具链和真实网页验收已经完成。离线验收结果为 Provider 172/172、OpenCLI 适配器 45/45、面板 10/10；验收范围与方式见 [Claude Code 验收记录](docs/claude-code-gateway.md)。这些数字说明已测场景通过，**不代表所有模型、网页改版或客户端版本都已兼容**。
 
-Windows 安装程序的构建流程已纳入仓库。发布后的安装包可从 [GitHub Releases](https://github.com/hfp556/cuhk-ai-codex-bridge/releases) 下载；若页面尚无 `CUHK-AI-Bridge-Setup-...-win-x64.exe`，请先使用源码安装。完整步骤见 [安装指南](docs/install.md)，验证范围见 [发布准备清单](docs/release-readiness.md)。
+Windows 10/11（x64）用户可从 [GitHub Releases](https://github.com/hfp556/cuhk-ai-codex-bridge/releases/latest) 下载 `CUHK-AI-Bridge-Setup-...-win-x64.exe`，双击并按向导安装。安装包包含运行时与独立控制面板，支持选择安装目录、创建桌面与开始菜单快捷方式，以及从 Windows 卸载。仓库私密期间，下载需要具有仓库访问权限的 GitHub 账号。完整步骤见 [安装指南](docs/install.md)，验证范围见 [发布准备清单](docs/release-readiness.md)。
 
 ### 已知边界
 

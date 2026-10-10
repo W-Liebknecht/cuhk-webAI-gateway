@@ -52,3 +52,6 @@ Name: "{autodesktop}\CUHK AI Bridge"; Filename: "{app}\app\CUHK-AI-Settings.exe"
 [Run]
 Filename: "{app}\docs\first-run.html"; Description: "查看首次使用说明"; Flags: postinstall shellexec skipifsilent
 Filename: "{app}\app\CUHK-AI-Settings.exe"; Description: "启动 CUHK AI Bridge"; Flags: postinstall nowait skipifsilent unchecked
+
+[UninstallRun]
+Filename: "{app}\runtime\node.exe"; Parameters: """{app}\bin\cuhk-gateway.cjs"" stop"; Flags: runhidden; RunOnceId: "StopLocalGateway"
