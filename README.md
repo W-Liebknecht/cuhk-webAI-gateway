@@ -27,28 +27,26 @@ Codex CLI / Claude Code CLI
 
 ## 真实生成示例
 
-下面的动画 SVG 由 Claude Code 经 Gateway 调用学校网页的 Qwen 模型生成，并通过本地 Write/Read 工具保存与独立读回验证。预览是其中一帧；点击 [原始 SVG](artifacts/pelican-bicycle.svg) 可下载或在浏览器中观看动画，验收方式见 [生成记录](docs/claude-code-gateway.md)。
+由 Claude Code 经 Gateway 调用网页的 Qwen 生成。预览是其中一帧；点击 [原始 SVG](artifacts/pelican-bicycle.svg) 可下载或在浏览器中观看动画，验收方式见 [生成记录](docs/claude-code-gateway.md)。
 
 ![Claude Code 经 Gateway 生成的鹈鹕骑自行车 SVG 的静态预览](artifacts/pelican-bicycle-frame-0.png)
-
-## 当前状态（2026-10）
-
-Codex CLI 与 Claude Code CLI 的双入口、Qwen/GLM 工具链和真实网页验收已经完成。离线验收结果为 Provider 172/172、OpenCLI 适配器 45/45、面板 10/10；验收范围与方式见 [Claude Code 验收记录](docs/claude-code-gateway.md)。这些数字说明已测场景通过。
-
-Windows 10/11（x64）用户可从 [GitHub Releases](https://github.com/hfp556/cuhk-ai-codex-bridge/releases/latest) 下载 `CUHK-AI-Bridge-Setup-...-win-x64.exe`，双击并按向导安装。安装包包含运行时与独立控制面板，支持选择安装目录、创建桌面与开始菜单快捷方式，以及从 Windows 卸载。仓库私密期间，下载需要具有仓库访问权限的 GitHub 账号。完整步骤见 [安装指南](docs/install.md)，验证范围见 [发布准备清单](docs/release-readiness.md)。
 
 
 ## 安装与使用
 
-普通 Windows 用户请打开 [GitHub Releases](https://github.com/hfp556/cuhk-ai-codex-bridge/releases)，下载最新版本中名为 `CUHK-AI-Bridge-Setup-...-win-x64.exe` 的文件，双击运行并按照向导选择安装目录。安装完成后会打开首次使用说明。安装包包含 Node、OpenCLI、扩展文件和控制面板；仍需 Chrome、学校网页登录和选用的 Codex/Claude Code CLI。详细图文步骤见 [安装指南](docs/install.md)。
+普通 Windows 用户
+请打开 [GitHub Releases](https://github.com/hfp556/cuhk-ai-codex-bridge/releases)，下载最新版本中名为 `CUHK-AI-Bridge-Setup-...-win-x64.exe` 的文件，双击运行并按照向导选择安装目录。安装完成后会打开首次使用说明。安装包包含 Node、OpenCLI、扩展文件和控制面板；仍需 Chrome、学校网页登录和选用的 Codex/Claude Code CLI。
+详细图文步骤见 [安装指南](docs/install.md)。
 
-开发者源码安装需准备 Git、Node.js 22+（含 npm）、Python 3（含 Tkinter）、Chrome 和选用的 CLI，然后在仓库根目录运行：
+开发者
+源码安装需准备 Git、Node.js 22+（含 npm）、Python 3（含 Tkinter）、Chrome 和选用的 CLI，然后在仓库根目录运行：
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\setup.ps1
 ```
 
-脚本准备本地依赖，不发送模型请求。新用户请按 [完整安装指南](docs/install.md) 加载扩展并检查环境，再启动客户端。
+脚本准备本地依赖，不发送模型请求。
+新用户请按 [完整安装指南](docs/install.md) 加载扩展并检查环境，再启动客户端。
 
 1. 在 Chrome 中安装 OpenCLI 的解压扩展，并自行登录 `https://ai.cuhk.edu.cn`。
 2. 双击仓库根目录的 `CUHK-AI-Settings.cmd`，选择工作目录、模型和思考强度。
