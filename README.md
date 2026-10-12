@@ -4,15 +4,12 @@
 
 > An experimental, local bridge from the CUHK-Shenzhen AI website to Codex CLI and Claude Code CLI. The browser stays logged in on your own computer.
 
-本项目是个人社区项目，你需要自行拥有学校 AI 网页的合法访问权限。它不提供学校账号、模型额度。
+## 功能
 
-## 它能做什么
-
-- 从本地控制面板选择网页模型与思考强度，分别启动 Codex CLI 或 Claude Code CLI。
-- 通过已登录的 Chrome 和 OpenCLI 使用 `https://ai.cuhk.edu.cn`，无需将学校密码填进本项目。
-- 将网页模型生成的工具决策交回本地 CLI 执行；已验证 Codex 的命令与文件补丁，以及 Claude Code 的读、写、编辑和 Bash 工具闭环。
-- 将同一个 CLI 会话接回同一个网页对话；后续回合只补发新增内容，在工具目录未变化时使用简短提醒。
-- 把 Gateway CLI 的配置与会话放在独立目录，避免覆盖日常 Codex/Claude 配置。
+- 从面板选择model与effort，启动 Codex 或 Claude Code CLI。
+- 通过已登录的 Chrome `https://ai.cuhk.edu.cn`，无需上传密码。
+- 将网页模型生成的工具决策交回本地 CLI 执行
+- 每个工作目录存储对应历史对话
 
 ```text
 Codex CLI / Claude Code CLI
@@ -26,7 +23,7 @@ Codex CLI / Claude Code CLI
           └─ 工具决策返回本机 CLI 执行
 ```
 
-网页端AI须在使用时为登录状态；本地工具仍遵循所用 CLI 的权限设置。Gateway 在本机监听回环地址。
+网页端AI须在使用时已登录
 
 ## 真实生成示例
 
