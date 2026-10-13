@@ -1,6 +1,6 @@
 # CUHK AI Bridge
 
-把香港中文大学（深圳）AI 网页中的模型接入本地 Codex CLI 和 Claude Code CLI，并让工具调用仍由你电脑上的 CLI 执行。
+把香港中文大学（深圳）AI 网页中的模型接入本地 Codex CLI 和 Claude Code CLI，为网页对话提供工具，操作本地文件。
 
 > An experimental, local bridge from the CUHK-Shenzhen AI website to Codex CLI and Claude Code CLI. The browser stays logged in on your own computer.
 
