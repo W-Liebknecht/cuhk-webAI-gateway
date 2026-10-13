@@ -15,11 +15,13 @@ try {
         Move-Item -Force -LiteralPath "$configPath.tmp" -Destination $configPath
     }
     if ($InitializeOnly) { Write-Host "Initialization complete: $claudeHome"; exit 0 }
-    & (Join-Path $PSScriptRoot 'cuhk-gateway.cmd') start | Out-Host
-    if ($LASTEXITCODE -ne 0) { throw 'CUHK Gateway failed to start.' }
+    Write-Host 'Starting CUHK Gateway...' -ForegroundColor Cyan
+    Start-CuhkGateway $bridgeRoot
     # Start a fresh interactive session even when this cwd has no history.
     # Claude's /resume picker remains available inside the native CLI.
-    & (Join-Path $PSScriptRoot 'cuhk-claude.cmd')
+    Write-Host 'Opening Claude Code in this folder...' -ForegroundColor Cyan
+    & (Join-Path $PSScriptRoot 'cuhk-claude.ps1')
+    if ($LASTEXITCODE -ne 0) { throw "Claude Code exited with code $LASTEXITCODE." }
     exit $LASTEXITCODE
 } catch {
     Write-Host "Launch failed: $($_.Exception.Message)" -ForegroundColor Red

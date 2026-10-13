@@ -3,7 +3,7 @@ const fs = require("node:fs"), path = require("node:path"), assert = require("no
 const { spawn } = require("node:child_process");
 const root = path.resolve(__dirname, "../../..");
 const state = path.join(root, "gateway/runtime-state");
-const cwd = path.join(state, "online-workspace/codex-regression");
+const cwd = path.join(state, `online-workspace/codex-regression-${Date.now()}`);
 fs.mkdirSync(cwd, { recursive: true });
 fs.writeFileSync(path.join(state, "codex-online.ndjson"), "");
 const prompt = `Use native local tools to complete both checks in this workspace. Do not call subagents.\n` +

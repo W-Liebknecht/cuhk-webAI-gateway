@@ -60,6 +60,31 @@ class SettingsConfigTests(unittest.TestCase):
 
 class SettingsLaunchTests(unittest.TestCase):
     @mock.patch.object(settings_app.subprocess, "Popen")
+    def test_actual_buttons_launch_codex_claude_codex_independently(self, popen: mock.Mock) -> None:
+        root = settings_app.tk.Tk()
+        root.withdraw()
+        self.addCleanup(root.destroy)
+        with tempfile.TemporaryDirectory() as directory:
+            config = settings_app.default_config()
+            config["workdir"] = directory
+            with mock.patch.object(settings_app, "load_config", return_value=config):
+                app = settings_app.SettingsApp(root)
+            app.save = mock.Mock()
+            buttons = {}
+            def visit(widget):
+                if isinstance(widget, settings_app.ttk.Button):
+                    buttons[widget.cget("text")] = widget
+                for child in widget.winfo_children():
+                    visit(child)
+            visit(root)
+            for client in ("Codex", "Claude Code", "Codex"):
+                buttons[f"启动 Gateway {client} CLI"].invoke()
+        self.assertEqual([call.args[0][-1] for call in popen.call_args_list],
+                         [str(settings_app.CODEX_LAUNCHER), str(settings_app.CLAUDE_LAUNCHER),
+                          str(settings_app.CODEX_LAUNCHER)])
+        self.assertTrue(all(call.kwargs["cwd"] == directory for call in popen.call_args_list))
+
+    @mock.patch.object(settings_app.subprocess, "Popen")
     def test_claude_button_launches_its_own_cli_in_selected_folder(self, popen: mock.Mock) -> None:
         with tempfile.TemporaryDirectory() as directory:
             app = self.make_app(directory)
@@ -111,6 +136,20 @@ class SettingsLaunchTests(unittest.TestCase):
         self.assertTrue(app.gateway_enabled.value)
         app.save.assert_called_once_with()
         self.assertEqual(popen.call_args.kwargs["cwd"], directory)
+        self.assertIn(str(settings_app.CODEX_LAUNCHER), popen.call_args.args[0])
+        self.assertNotIn(str(settings_app.CLAUDE_LAUNCHER), popen.call_args.args[0])
+
+    @mock.patch.object(settings_app.subprocess, "Popen")
+    def test_switching_clients_keeps_each_button_routed_to_its_own_launcher(self, popen: mock.Mock) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            app = self.make_app(directory)
+            app.launch_gateway_claude()
+            app.launch_gateway_codex()
+            app.launch_gateway_claude()
+        self.assertEqual([call.args[0][-1] for call in popen.call_args_list],
+                         [str(settings_app.CLAUDE_LAUNCHER), str(settings_app.CODEX_LAUNCHER),
+                          str(settings_app.CLAUDE_LAUNCHER)])
+        self.assertTrue(all(call.kwargs["cwd"] == directory for call in popen.call_args_list))
 
     @mock.patch.object(settings_app.subprocess, "Popen")
     def test_launch_without_a_selection_uses_the_bridge_root(self, popen: mock.Mock) -> None:

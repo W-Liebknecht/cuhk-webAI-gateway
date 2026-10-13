@@ -8,8 +8,7 @@ $bridgeRoot = Split-Path -Parent $PSScriptRoot
 Initialize-CuhkConfig $bridgeRoot
 $configPath = Join-Path $bridgeRoot 'config.json'
 $codexHome = Join-Path $bridgeRoot 'gateway\runtime-state\codex-home'
-$gatewayCommand = Join-Path $PSScriptRoot 'cuhk-gateway.cmd'
-$codexCommand = Join-Path $PSScriptRoot 'cuhk-codex.cmd'
+$codexCommand = Join-Path $PSScriptRoot 'cuhk-codex.ps1'
 
 function Initialize-CuhkCodexHome {
     $null = New-Item -ItemType Directory -Force -Path $codexHome
@@ -50,11 +49,11 @@ try {
     }
 
     Write-Host 'Starting CUHK Gateway...' -ForegroundColor Cyan
-    & $gatewayCommand start | Out-Host
-    if ($LASTEXITCODE -ne 0) { throw "CUHK Gateway failed to start (exit code $LASTEXITCODE)." }
+    Start-CuhkGateway $bridgeRoot
 
     Write-Host 'Opening this folder''s Gateway CLI sessions...' -ForegroundColor Cyan
     & $codexCommand resume
+    if ($LASTEXITCODE -ne 0) { throw "Codex exited with code $LASTEXITCODE." }
     exit $LASTEXITCODE
 } catch {
     Write-Host "Launch failed: $($_.Exception.Message)" -ForegroundColor Red
