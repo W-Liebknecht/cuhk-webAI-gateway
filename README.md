@@ -5,12 +5,12 @@
 > An experimental, local bridge from the CUHK-Shenzhen AI website to Codex CLI and Claude Code CLI. The browser stays logged in on your own computer.
 
 ## 功能
-
-- 从面板选择model与effort，启动 Codex 或 Claude Code CLI。
-- 通过已登录的 Chrome `https://ai.cuhk.edu.cn`，无需上传密码。
+- 支持skill，视觉功能
+- 可自由选择model与effort，启动 Codex 或 Claude Code CLI。
+- 历史对话存储在对应的工作目录下
 - 将网页模型生成的工具决策交回本地 CLI 执行
-- 每个工作目录存储对应历史对话
-
+- 通过已登录的 Chrome `https://ai.cuhk.edu.cn`，无需上传密码。
+  
 ```text
 Codex CLI / Claude Code CLI
           │  本地协议
@@ -34,11 +34,11 @@ Codex CLI / Claude Code CLI
 
 ## 安装与使用
 
-普通 Windows 用户
+普通 Windows 用户：
 请打开 [GitHub Releases](https://github.com/hfp556/cuhk-ai-codex-bridge/releases)，下载最新版本中名为 `CUHK-AI-Bridge-Setup-...-win-x64.exe` 的文件，双击运行并按照向导选择安装目录。安装完成后会打开首次使用说明。安装包包含 Node、OpenCLI、扩展文件和控制面板；仍需 Chrome、学校网页登录和选用的 Codex/Claude Code CLI。
 详细图文步骤见 [安装指南](docs/install.md)。
 
-开发者
+开发者：
 源码安装需准备 Git、Node.js 22+（含 npm）、Python 3（含 Tkinter）、Chrome 和选用的 CLI，然后在仓库根目录运行：
 
 ```powershell
