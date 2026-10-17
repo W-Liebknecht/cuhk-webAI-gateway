@@ -23,6 +23,14 @@ function Initialize-CuhkConfig([string]$Root) {
     }
 }
 
+function Reset-CuhkProcesses([string]$Root) {
+    & (Get-CuhkNode) (Join-Path $Root 'bin\cuhk-gateway.cjs') stop
+    if ($LASTEXITCODE -ne 0) { throw 'Unable to clean up the previous Gateway session.' }
+    $env:CUHK_PROCESS_DIRECTORY = Join-Path $Root 'gateway\runtime-state\processes'
+    $preload = '--require "' + (Join-Path $Root 'bin\process-owner.cjs').Replace('\', '/') + '"'
+    if (-not ([string]$env:NODE_OPTIONS).Contains($preload)) { $env:NODE_OPTIONS = "$env:NODE_OPTIONS $preload".Trim() }
+}
+
 function Start-CuhkGateway([string]$Root) {
     # Both CLI launchers use this handoff. The background server must never
     # inherit the interactive terminal's output pipeline.

@@ -22,6 +22,18 @@ OPENCLI = ROOT / "bin" / "opencli.cmd"
 CODEX_LAUNCHER = ROOT / "bin" / "cuhk-codex-launch.ps1"
 CLAUDE_LAUNCHER = ROOT / "bin" / "cuhk-claude-launch.ps1"
 
+
+def stop_gateway() -> None:
+    result = subprocess.run(
+        ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File",
+         str(ROOT / "bin" / "node-run.ps1"), str(ROOT / "bin" / "cuhk-gateway.cjs"), "stop"],
+        capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=55,
+        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0), check=False,
+    )
+    if result.returncode:
+        raise RuntimeError(result.stderr.strip() or result.stdout.strip() or "进程清理失败")
+
+
 MODELS = {
     "glm5.3flash": {"label": "GLM 5.3 Flash（本地版）", "thinking": ["low", "high", "max"]},
     "glm5.3": {"label": "GLM 5.3", "thinking": []},
@@ -153,7 +165,8 @@ class SettingsApp:
         buttons.pack(fill="x", pady=(20, 8))
         ttk.Button(buttons, text="保存设置", command=self.save).pack(side="left")
         ttk.Button(buttons, text="检查连接", command=self.check_connection).pack(side="left", padx=8)
-        ttk.Button(buttons, text="关闭", command=root.destroy).pack(side="right")
+        ttk.Button(buttons, text="关闭", command=self.close).pack(side="right")
+        root.protocol("WM_DELETE_WINDOW", self.close)
         ttk.Button(
             frame,
             text="启动 Gateway Codex CLI",
@@ -253,6 +266,17 @@ class SettingsApp:
 
     def launch_gateway_codex(self) -> None:
         self._launch_gateway(CODEX_LAUNCHER, "Codex")
+
+    def close(self) -> None:
+        self.status.set("正在结束 Gateway 与相关进程……")
+        self.root.update_idletasks()
+        try:
+            stop_gateway()
+        except (OSError, RuntimeError, subprocess.TimeoutExpired) as error:
+            self.status.set("清理失败，请重试关闭")
+            messagebox.showerror("关闭失败", str(error))
+            return
+        self.root.destroy()
 
     def launch_gateway_claude(self) -> None:
         self._launch_gateway(CLAUDE_LAUNCHER, "Claude Code")

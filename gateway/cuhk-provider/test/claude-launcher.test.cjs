@@ -11,7 +11,7 @@ function fixture(t, client, failure = false) {
   const bin = path.join(root, "bin");
   fs.mkdirSync(bin);
   const source = path.resolve(__dirname, "../../../bin");
-  for (const name of ["runtime.ps1", `cuhk-${client}-launch.ps1`]) {
+  for (const name of ["runtime.ps1", "process-owner.cjs", `cuhk-${client}-launch.ps1`]) {
     fs.copyFileSync(path.join(source, name), path.join(bin, name));
   }
   fs.writeFileSync(path.join(root, "config.json"), '{"gatewayEnabled":true}');
@@ -20,7 +20,12 @@ function fixture(t, client, failure = false) {
     [IO.File]::WriteAllText((Join-Path (Split-Path -Parent $PSScriptRoot) 'client-entered'), $receipt)
     exit 0
   `);
-  fs.writeFileSync(path.join(bin, "cuhk-gateway.cjs"), failure ?
+  fs.writeFileSync(path.join(bin, "cuhk-gateway.cjs"), `
+    if (process.argv[2] === 'stop') {
+      require('node:fs').appendFileSync(require('node:path').join(__dirname, '../cleanup-calls'), 'stop\\n');
+      process.exit(0);
+    }
+  ` + (failure ?
     `console.error('fixture startup failure'); process.exitCode = 7;` : `
     const fs = require('node:fs');
     const path = require('node:path');
@@ -34,7 +39,7 @@ function fixture(t, client, failure = false) {
       child.unref();
       console.log('fixture cold start');
     } else { console.log('fixture already running'); }
-  `);
+  `));
   t.after(async () => {
     try { process.kill(Number(fs.readFileSync(path.join(root, "server-pid"), "utf8"))); } catch {}
     // Windows releases a terminated process's working-directory handle later.
@@ -77,6 +82,7 @@ test(`${client} launcher hands off both cold and existing Gateway starts to its 
     assert.equal(fs.readdirSync(path.join(root, "gateway/runtime-state")).some(name => name.startsWith("gateway-start-")), false);
     fs.unlinkSync(path.join(root, "client-entered"));
   }
+  assert.equal(fs.readFileSync(path.join(root, 'cleanup-calls'), 'utf8'), 'stop\nstop\n');
 });
 
 test(`${client} launcher reports Gateway failure and does not start the client`, {

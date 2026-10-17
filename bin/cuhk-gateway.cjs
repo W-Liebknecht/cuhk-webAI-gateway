@@ -5,7 +5,8 @@ const crypto = require("node:crypto");
 const fs = require("node:fs");
 const net = require("node:net");
 const path = require("node:path");
-const { spawn } = require("node:child_process");
+const { spawn, execFile } = require("node:child_process");
+const { promisify } = require("node:util");
 const { cuhkProvider } = require("../gateway/cuhk-provider/src/ccr-registration.cjs");
 const { ensureConfig, primaryCheckout } = require("./bridge-paths.cjs");
 
@@ -138,11 +139,11 @@ async function start() {
     console.log(JSON.stringify({ ok: true, alreadyRunning: true, ...existingStatus }, null, 2));
     return;
   }
-  if (fs.existsSync(controlPath)) removeFile(controlPath);
-
   const ccr = resolveCcrRoot();
   const instanceId = crypto.randomUUID();
   acquireStartupLock(instanceId);
+  await cleanupProcesses();
+  if (fs.existsSync(controlPath)) removeFile(controlPath);
   const ports = await allocatePorts();
   const webToken = crypto.randomBytes(32).toString("hex");
   const gatewayKey = crypto.randomBytes(32).toString("hex");
@@ -155,6 +156,8 @@ async function start() {
     stdio: ["ignore", stdout, stderr],
     env: {
       ...process.env,
+      CUHK_PROCESS_DIRECTORY: path.join(state, "processes"),
+      NODE_OPTIONS: `${process.env.NODE_OPTIONS || ""} --require ${JSON.stringify(path.join(root, "bin/process-owner.cjs"))}`,
       CCR_WEB_AUTH_TOKEN: webToken,
       CCR_INTERNAL_HOME_DIR: path.join(state, "home"),
       CCR_INTERNAL_APP_DATA_DIR: path.join(state, "appdata"),
@@ -207,7 +210,7 @@ async function start() {
     writeJsonAtomic(lockPath, { role: "running", instanceId, pid: host.pid, createdAt: Date.now(), ports });
     console.log(JSON.stringify({ ok: true, started: true, ...(await currentStatus(control)) }, null, 2));
   } catch (error) {
-    try { process.kill(host.pid); } catch {}
+    await cleanupProcesses();
     removeFile(controlPath);
     removeFile(lockPath);
     throw error;
@@ -215,26 +218,25 @@ async function start() {
 }
 
 async function stop() {
-  const control = readControl();
-  if (!control) {
-    removeFile(controlPath);
-    removeFile(lockPath);
-    console.log(JSON.stringify({ ok: true, alreadyStopped: true }, null, 2));
-    return;
-  }
-  const status = await currentStatus(control);
-  if (!status.running) {
-    removeFile(controlPath);
-    removeFile(lockPath);
-    console.log(JSON.stringify({ ok: true, staleStateRemoved: true }, null, 2));
-    return;
-  }
-  try { await rpc(control, "stopGateway"); } finally {
-    try { process.kill(control.pid); } catch {}
-    removeFile(controlPath);
-    removeFile(lockPath);
-  }
+  // Clean the full tree before deleting state, even when RPC/state is broken.
+  await cleanupProcesses();
+  removeFile(controlPath);
+  removeFile(lockPath);
   console.log(JSON.stringify({ ok: true, stopped: true }, null, 2));
+}
+
+async function cleanupProcesses() {
+  if (process.platform !== "win32") {
+    const control = readControl();
+    if (control && processExists(control.pid)) process.kill(control.pid);
+    return;
+  }
+  const { stdout } = await promisify(execFile)("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass",
+    "-File", path.join(root, "bin/cleanup-processes.ps1"), "-ExcludePid", String(process.pid)],
+  { windowsHide: true, timeout: 45000 });
+  const result = JSON.parse(stdout.trim());
+  if (!result.ok || result.remaining !== 0) throw new Error("Related CUHK processes remain after cleanup.");
+  return result;
 }
 
 async function main(command = process.argv[2] || "status") {

@@ -4,6 +4,7 @@ const http = require('node:http');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
 const { codexExecutable } = require('./cli-discovery.cjs');
+const { registerProcess } = require('./process-owner.cjs');
 // Avoid cmd.exe re-parsing multiline prompts. The ephemeral relay attaches CLI
 // ownership to requests; it does not log content or credentials.
 const payload = JSON.parse(fs.readFileSync(process.argv[2], 'utf8').replace(/^\uFEFF/, ''));
@@ -36,6 +37,7 @@ const relay = http.createServer(async (req, res) => {
 relay.listen(0, '127.0.0.1', () => {
   const base = `model_providers.cuhk_gateway.base_url="http://127.0.0.1:${relay.address().port}/v1"`;
   const child = spawn(executable, ['-c', base, ...args], { stdio: 'inherit', windowsHide: true, shell: false });
+  child.once('spawn', () => registerProcess(child.pid, executable));
   process.on('SIGINT', () => {});
   child.on('error', error => { console.error(error.message); process.exit(1); });
   child.on('exit', code => process.exit(code ?? 1));

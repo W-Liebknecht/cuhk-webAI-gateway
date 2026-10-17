@@ -59,6 +59,25 @@ class SettingsConfigTests(unittest.TestCase):
 
 
 class SettingsLaunchTests(unittest.TestCase):
+    @mock.patch.object(settings_app, "stop_gateway")
+    def test_close_waits_for_cleanup_before_destroying_window(self, stop: mock.Mock) -> None:
+        app = self.make_app("")
+        app.root = mock.Mock()
+        order = mock.Mock()
+        order.attach_mock(stop, "stop")
+        order.attach_mock(app.root.destroy, "destroy")
+        app.close()
+        self.assertEqual(order.mock_calls, [mock.call.stop(), mock.call.destroy()])
+
+    @mock.patch.object(settings_app.messagebox, "showerror")
+    @mock.patch.object(settings_app, "stop_gateway", side_effect=RuntimeError("remaining process"))
+    def test_failed_cleanup_keeps_panel_open(self, stop: mock.Mock, error: mock.Mock) -> None:
+        app = self.make_app("")
+        app.root = mock.Mock()
+        app.close()
+        app.root.destroy.assert_not_called()
+        error.assert_called_once()
+
     @mock.patch.object(settings_app.subprocess, "Popen")
     def test_actual_buttons_launch_codex_claude_codex_independently(self, popen: mock.Mock) -> None:
         root = settings_app.tk.Tk()

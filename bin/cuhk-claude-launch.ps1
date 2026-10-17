@@ -6,6 +6,7 @@ Initialize-CuhkConfig $bridgeRoot
 $claudeHome = Join-Path $bridgeRoot 'gateway\runtime-state\claude-home'
 $configPath = Join-Path $bridgeRoot 'config.json'
 try {
+    Reset-CuhkProcesses $bridgeRoot
     $host.UI.RawUI.WindowTitle = 'CUHK Gateway Claude Code CLI'
     $null = New-Item -ItemType Directory -Force -Path $claudeHome
     $config = Get-Content -Raw -LiteralPath $configPath | ConvertFrom-Json

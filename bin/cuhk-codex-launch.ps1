@@ -38,6 +38,7 @@ function Enable-CuhkGateway {
 }
 
 try {
+    Reset-CuhkProcesses $bridgeRoot
     $host.UI.RawUI.WindowTitle = 'CUHK Gateway Codex CLI'
     Write-Host 'Initializing the isolated Gateway CLI data directory...' -ForegroundColor Cyan
     Initialize-CuhkCodexHome
