@@ -2,7 +2,7 @@
   #error PayloadDir must point to the prepared installer payload
 #endif
 #ifndef AppVersion
-  #define AppVersion "0.1.0"
+  #define AppVersion "0.1.1"
 #endif
 
 [Setup]

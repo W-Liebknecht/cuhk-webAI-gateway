@@ -1,7 +1,27 @@
 import { describe, it, expect, vi } from 'vitest';
 import { JSDOM } from 'jsdom';
 import { EmptyResultError } from './_opencli.js';
-import { getContextUsage, getVisibleMessages, resolveModel, resolveThinking, setThinking, startFreshConversation, stopActiveGeneration, uploadImages, waitForResponse } from './utils.js';
+import { getContextUsage, getCurrentModel, getVisibleMessages, resolveModel, resolveThinking, selectModel, setThinking, startFreshConversation, stopActiveGeneration, uploadImages, waitForResponse } from './utils.js';
+
+function modelTestPage(html, width = 1008) {
+    const dom = new JSDOM(html, { runScripts: 'outside-only' });
+    Object.defineProperty(dom.window, 'innerWidth', { value: width });
+    Object.defineProperty(dom.window.HTMLElement.prototype, 'innerText', {
+        configurable: true,
+        get() { return this.textContent; },
+        set(value) { this.textContent = value; },
+    });
+    const page = {
+        evaluate: async (source, ...args) => typeof source === 'string'
+            ? dom.window.eval(source)
+            : dom.window.eval(`(${source.toString()})(...${JSON.stringify(args)})`),
+        wait: vi.fn(async ({ selector }) => {
+            if (selector && !dom.window.document.querySelector(selector)) throw new Error('Selector did not appear');
+        }),
+        click: vi.fn(async selector => dom.window.document.querySelector(selector)?.click()),
+    };
+    return { dom, page };
+}
 
 describe('CUHK AI context usage', () => {
     it('reads the localized context ring and returns the remaining percentage', async () => {
@@ -75,6 +95,10 @@ describe('CUHK AI model configuration', () => {
         expect(resolveModel('GPT 6 Sol').alias).toBe('gpt6sol');
         expect(resolveModel('gpt6luna').display).toBe('GPT 6 Luna');
         expect(resolveModel('Qwen3.8 27B（本地版）').alias).toBe('qwen3.8-27b');
+        expect(resolveModel('Qwen3.8 27B (On-Premises)').alias).toBe('qwen3.8-27b');
+        expect(resolveModel('GLM 5.3 Flash (On-Premises)').alias).toBe('glm5.3flash');
+        expect(resolveModel('Doubao Seed 2.1 Pro').alias).toBe('seed2.1pro');
+        expect(() => resolveModel('Qwen3.8 27B (Cloud)')).toThrow(/Unsupported/);
     });
 
     it('validates thinking levels per model', () => {
@@ -90,17 +114,23 @@ describe('CUHK AI model configuration', () => {
         expect(() => resolveThinking('high', resolveModel('glm5.3'))).toThrow(/not available/);
     });
 
-    it.each([false, true])('selects a thinking option by stable ordinal (acknowledged input lost: %s)', async (lostInput) => {
-        const display = 'GLM 5.3 Flash（本地版）';
+    it.each([
+        [false, 'glm5.3flash', 'GLM 5.3 Flash（本地版）', false, ['低', '高', '极致'], 'max'],
+        [true, 'glm5.3flash', 'GLM 5.3 Flash（本地版）', false, ['低', '高', '极致'], 'max'],
+        [false, 'glm5.3flash', 'GLM 5.3 Flash (On-Premises)', true, ['Low', 'High', 'Max'], 'max'],
+        [false, 'qwen3.8-27b', 'Qwen3.8 27B (On-Premises)', true, ['None', 'Low', 'Medium', 'Extra High'], 'xhigh'],
+        [true, 'qwen3.8-27b', 'Qwen3.8 27B (On-Premises)', true, ['None', 'Low', 'Medium', 'Extra High'], 'xhigh'],
+        [false, 'seed2.1pro', 'Doubao Seed 2.1 Pro', true, ['None', 'High'], 'high'],
+    ])('selects localized thinking (%s, %s, %s)', async (lostInput, alias, display, english, labels, level) => {
+        const initialIndex = level === 'high' ? 0 : 1;
+        const targetIndex = resolveModel(alias).thinking.indexOf(level);
         const dom = new JSDOM(`
             <button aria-haspopup="dialog" aria-label="${display}"></button>
             <div role="dialog">
                 <button id="model-option-current"></button>
-                <button role="combobox" aria-label="设置 ${display} 的思考配置"><span>高</span></button>
+                <button role="combobox" aria-label="${english ? `Set reasoning for ${display}` : `设置 ${display} 的思考配置`}"><span>${labels[initialIndex]}</span></button>
             </div>
-            <div role="option" aria-selected="false" data-state="unchecked">低</div>
-            <div role="option" aria-selected="true" data-state="checked">高</div>
-            <div role="option" aria-selected="false" data-state="unchecked">极致</div>
+            ${labels.map((label, index) => `<div role="option" aria-selected="${index === initialIndex}" data-state="${index === initialIndex ? 'checked' : 'unchecked'}">${label}</div>`).join('')}
         `, { runScripts: 'outside-only' });
         Object.defineProperty(dom.window.HTMLElement.prototype, 'innerText', {
             configurable: true,
@@ -136,10 +166,10 @@ describe('CUHK AI model configuration', () => {
             },
         };
         try {
-            const result = await setThinking(page, resolveModel('glm5.3flash'), 'max');
-            expect(result.name).toBe('max');
-            expect(combo.textContent).toBe('极致');
-            expect(options[2].getAttribute('data-state')).toBe('checked');
+            const result = await setThinking(page, resolveModel(alias), level);
+            expect(result.name).toBe(level);
+            expect(combo.textContent).toBe(labels[targetIndex]);
+            expect(options[targetIndex].getAttribute('data-state')).toBe('checked');
             expect(page.click).toHaveBeenCalledTimes(2);
             expect(page.click.mock.calls[0][0]).toContain('data-cuhk-thinking-trigger');
             expect(page.click.mock.calls[1][0]).toContain('data-cuhk-thinking-option');
@@ -147,6 +177,72 @@ describe('CUHK AI model configuration', () => {
         } finally {
             dom.window.close();
         }
+    });
+
+    it.each([
+        ['Qwen3.8 27B（本地版）', 'qwen3.8-27b', 1600],
+        ['Qwen3.8 27B (On-Premises)', 'qwen3.8-27b', 480],
+        ['GLM 5.3 Flash (On-Premises)', 'glm5.3flash', 1008],
+        ['Doubao Seed 2.1 Pro', 'seed2.1pro', 480],
+    ])('opens the semantic selector and confirms localized model %s at width %s', async (label, alias, width) => {
+        const { dom, page } = modelTestPage('<button aria-haspopup="dialog" aria-label="GPT 6 Luna"></button>', width);
+        const trigger = dom.window.document.querySelector('button');
+        const click = vi.fn();
+        trigger.addEventListener('click', () => {
+            dom.window.document.body.insertAdjacentHTML('beforeend', `<div role="dialog">
+                <button id="model-option-99">${label}\nDescription</button>
+                <button id="model-option-1">Qwen3.8 27B (Cloud)</button>
+            </div>`);
+            dom.window.document.querySelector('#model-option-99').addEventListener('click', () => {
+                click(); trigger.setAttribute('aria-label', label);
+                dom.window.document.querySelector('[role="dialog"]').remove();
+            });
+        });
+        try {
+            expect((await selectModel(page, alias)).alias).toBe(alias);
+            expect(await getCurrentModel(page)).toBe(resolveModel(alias).display);
+            expect(click).toHaveBeenCalledTimes(1);
+        } finally { dom.window.close(); }
+    });
+
+    it.each(['disabled', 'aria-disabled="true"', 'data-disabled'])('refuses a disabled localized model: %s', async disabled => {
+        const { dom, page } = modelTestPage(`<button aria-haspopup="dialog" aria-label="GPT 6 Luna"></button>
+            <div role="dialog"><button id="model-option-1" ${disabled}>Qwen3.8 27B (On-Premises)</button></div>`);
+        const clicked = vi.fn();
+        dom.window.document.querySelector('#model-option-1').addEventListener('click', clicked);
+        try {
+            await expect(selectModel(page, 'qwen3.8-27b')).rejects.toThrow(/disabled/);
+            expect(clicked).not.toHaveBeenCalled();
+        } finally { dom.window.close(); }
+    });
+
+    it('refuses ambiguous model buttons instead of choosing the first one', async () => {
+        const { dom, page } = modelTestPage('<button aria-haspopup="dialog" aria-label="GPT 6 Luna"></button><button aria-haspopup="dialog" aria-label="Qwen3.8 27B (On-Premises)"></button>');
+        const clicked = vi.fn();
+        dom.window.document.querySelectorAll('button').forEach(button => button.addEventListener('click', clicked));
+        try {
+            await expect(selectModel(page, 'qwen3.8-27b')).rejects.toThrow(/selector was not found/);
+            expect(clicked).not.toHaveBeenCalled();
+        } finally { dom.window.close(); }
+    });
+
+    it.each(['Qwen3.8 27B (Cloud)', 'Qwen3.8 27B (On-Premises)\nQwen3.8 27B (On-Premises)'])('does not substitute or guess model identity: %s', async label => {
+        const options = label.split('\n').map((text, i) => `<button id="model-option-${i}">${text}</button>`).join('');
+        const { dom, page } = modelTestPage(`<button aria-haspopup="dialog" aria-label="GPT 6 Luna"></button><div role="dialog">${options}</div>`);
+        try { await expect(selectModel(page, 'qwen3.8-27b')).rejects.toThrow(/not found/); }
+        finally { dom.window.close(); }
+    });
+
+    it.each(['count', 'disabled', 'ambiguous-control'])('fails closed when English thinking controls change: %s', async failure => {
+        const combo = '<button role="combobox" aria-label="Set reasoning for Qwen3.8 27B (On-Premises)">Low</button>';
+        const { dom, page } = modelTestPage(`<button aria-haspopup="dialog" aria-label="Qwen3.8 27B (On-Premises)"></button>
+            <div role="dialog"><button id="model-option-1"></button>${combo}${failure === 'ambiguous-control' ? combo : ''}</div>
+            ${['None', 'Low', 'Medium', 'Extra High'].slice(0, failure === 'count' ? 3 : 4).map((label, i) => `<div role="option" ${failure === 'disabled' && i === 3 ? 'aria-disabled="true"' : ''}>${label}</div>`).join('')}`);
+        try {
+            await expect(setThinking(page, resolveModel('qwen3.8-27b'), 'xhigh')).rejects.toThrow(
+                failure === 'count' ? /no longer match/ : failure === 'disabled' ? /disabled/ : /does not expose/);
+            expect(page.click.mock.calls.filter(([selector]) => selector.includes('thinking-option'))).toHaveLength(0);
+        } finally { dom.window.close(); }
     });
 });
 

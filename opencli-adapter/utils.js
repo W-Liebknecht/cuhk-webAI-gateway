@@ -89,17 +89,27 @@ export async function getContextUsage(page) {
 }
 
 export const MODEL_DEFINITIONS = [
-    { alias: 'glm5.3flash', display: 'GLM 5.3 Flash（本地版）', thinking: ['low', 'high', 'max'] },
+    { alias: 'glm5.3flash', display: 'GLM 5.3 Flash（本地版）', localizedDisplays: ['GLM 5.3 Flash (On-Premises)'], thinking: ['low', 'high', 'max'] },
     { alias: 'glm5.3', display: 'GLM 5.3', thinking: [] },
     { alias: 'gpt5.6sol', display: 'GPT 5.6 Sol', thinking: ['none', 'low', 'medium', 'high', 'xhigh', 'max'] },
     { alias: 'gpt6sol', display: 'GPT 6 Sol', thinking: ['none', 'low', 'medium', 'high', 'xhigh', 'max'] },
     { alias: 'gpt6luna', display: 'GPT 6 Luna', thinking: ['none', 'low', 'medium', 'high', 'xhigh', 'max'] },
     { alias: 'deepseek-v4.1-flash', display: 'DeepSeek V4.1 Flash', thinking: ['none', 'high', 'max'] },
     { alias: 'kimi-k3', display: 'Kimi K3', thinking: ['low', 'high', 'max'] },
-    { alias: 'seed2.1pro', display: '豆包 Seed 2.1 Pro', thinking: ['none', 'high'] },
+    { alias: 'seed2.1pro', display: '豆包 Seed 2.1 Pro', localizedDisplays: ['Doubao Seed 2.1 Pro'], thinking: ['none', 'high'] },
     { alias: 'gemini3.8flash', display: 'Gemini 3.8 Flash', thinking: ['low', 'high'] },
-    { alias: 'qwen3.8-27b', display: 'Qwen3.8 27B（本地版）', thinking: ['none', 'low', 'medium', 'xhigh'] },
+    { alias: 'qwen3.8-27b', display: 'Qwen3.8 27B（本地版）', localizedDisplays: ['Qwen3.8 27B (On-Premises)'], thinking: ['none', 'low', 'medium', 'xhigh'] },
 ];
+
+// Match the site's observed localized names, retaining the deployment suffix:
+// stripping it would conflate an on-premises model with a hosted variant.
+function modelLabels(model) {
+    return [model.display, ...(model.localizedDisplays || [])];
+}
+
+function thinkingControlLabels(model) {
+    return modelLabels(model).flatMap(label => [`设置 ${label} 的思考配置`, `Set reasoning for ${label}`]);
+}
 
 const THINKING_LABELS = {
     none: '不思考',
@@ -117,7 +127,7 @@ function normalizeName(value) {
 export function resolveModel(value) {
     const key = normalizeName(value);
     const model = MODEL_DEFINITIONS.find((item) =>
-        normalizeName(item.alias) === key || normalizeName(item.display) === key);
+        normalizeName(item.alias) === key || modelLabels(item).some(label => normalizeName(label) === key));
     if (!model) {
         throw new ArgumentError(
             `Unsupported CUHK AI model: ${value}`,
@@ -150,23 +160,25 @@ export function resolveThinking(value, model) {
 }
 
 export async function getCurrentModel(page) {
-    return page.evaluate((names) => {
-        const button = Array.from(document.querySelectorAll('button[aria-haspopup="dialog"]'))
-            .find((candidate) => names.includes(candidate.getAttribute('aria-label')));
-        return button?.getAttribute('aria-label') || '';
-    }, MODEL_DEFINITIONS.map((item) => item.display));
+    return page.evaluate((models) => {
+        const buttons = Array.from(document.querySelectorAll('button[aria-haspopup="dialog"]'))
+            .map(button => models.find(model => model.labels.includes(button.getAttribute('aria-label'))))
+            .filter(Boolean);
+        // Return the canonical display so callers do not depend on UI language.
+        return buttons.length === 1 ? buttons[0].display : '';
+    }, MODEL_DEFINITIONS.map(model => ({ display: model.display, labels: modelLabels(model) })));
 }
 
 async function openModelDialog(page) {
     const alreadyOpen = await page.evaluate(() => !!document.querySelector('[role="dialog"] button[id^="model-option-"]'));
     if (alreadyOpen) return;
     const opened = await page.evaluate((names) => {
-        const button = Array.from(document.querySelectorAll('button[aria-haspopup="dialog"]'))
-            .find((candidate) => names.includes(candidate.getAttribute('aria-label')));
-        if (!button) return false;
-        button.click();
+        const buttons = Array.from(document.querySelectorAll('button[aria-haspopup="dialog"]'))
+            .filter((candidate) => names.includes(candidate.getAttribute('aria-label')));
+        if (buttons.length !== 1) return false;
+        buttons[0].click();
         return true;
-    }, MODEL_DEFINITIONS.map((item) => item.display));
+    }, MODEL_DEFINITIONS.flatMap(modelLabels));
     if (!opened) throw new CommandExecutionError('CUHK AI model selector was not found.');
     try {
         await page.wait({ selector: '[role="dialog"] button[id^="model-option-"]', timeout: 5 });
@@ -188,14 +200,16 @@ export async function selectModel(page, value) {
     const model = resolveModel(value);
     if (await getCurrentModel(page) === model.display) return model;
     await openModelDialog(page);
-    const result = await page.evaluate((display) => {
+    const result = await page.evaluate((labels) => {
         const options = Array.from(document.querySelectorAll('[role="dialog"] button[id^="model-option-"]'));
-        const target = options.find((button) => (button.innerText || '').split('\n')[0].trim() === display);
-        if (!target) return { ok: false, available: options.map((button) => (button.innerText || '').split('\n')[0].trim()) };
-        if (target.disabled) return { ok: false, disabled: true };
+        const targets = options.filter((button) => labels.includes((button.innerText || '').split('\n')[0].trim()));
+        if (targets.length !== 1) return { ok: false };
+        const target = targets[0];
+        if (target.disabled || target.getAttribute('aria-disabled') === 'true' || target.hasAttribute('data-disabled')) return { ok: false, disabled: true };
+        const label = (target.innerText || '').split('\n')[0].trim();
         target.click();
-        return { ok: true };
-    }, model.display);
+        return { ok: true, label };
+    }, modelLabels(model));
     if (!result?.ok) {
         await closeModelDialog(page);
         throw new CommandExecutionError(result?.disabled
@@ -203,7 +217,8 @@ export async function selectModel(page, value) {
             : `${model.display} was not found in the model dialog.`);
     }
     try {
-        await page.wait({ selector: `button[aria-label=${JSON.stringify(model.display)}]`, timeout: 5 });
+        await page.wait({ selector: `button[aria-haspopup="dialog"][aria-label=${JSON.stringify(result.label)}]`, timeout: 5 });
+        if (await getCurrentModel(page) !== model.display) throw new Error('Model identity did not match');
     } catch {
         throw new CommandExecutionError(`Model selection for ${model.display} could not be confirmed; inspect the open page before retrying.`);
     }
@@ -217,13 +232,13 @@ export async function setThinking(page, model, value) {
         throw new CommandExecutionError(`Select ${model.display} before changing its thinking level.`);
     }
     await openModelDialog(page);
-    const control = await page.evaluate((display) => {
+    const control = await page.evaluate((labels) => {
         const dialog = document.querySelector('[role="dialog"]');
-        const box = dialog && Array.from(dialog.querySelectorAll('[role="combobox"]'))
-            .find((candidate) => (candidate.getAttribute('aria-label') || '').includes(display));
-        if (!box) return { ok: false };
+        const boxes = dialog && Array.from(dialog.querySelectorAll('[role="combobox"]'))
+            .filter((candidate) => labels.includes(candidate.getAttribute('aria-label')));
+        if (boxes?.length !== 1) return { ok: false };
         return { ok: true };
-    }, model.display);
+    }, thinkingControlLabels(model));
     if (!control?.ok) {
         await closeModelDialog(page);
         throw new CommandExecutionError(`${model.display} does not expose a thinking selector on the current page.`);
@@ -234,12 +249,13 @@ export async function setThinking(page, model, value) {
     const triggerToken = `thinking-trigger-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     const markedTrigger = await page.evaluate((input) => {
         const dialog = document.querySelector('[role="dialog"]');
-        const box = dialog && Array.from(dialog.querySelectorAll('[role="combobox"]'))
-            .find((candidate) => (candidate.getAttribute('aria-label') || '').includes(input.display));
-        if (!box) return false;
+        const boxes = dialog && Array.from(dialog.querySelectorAll('[role="combobox"]'))
+            .filter((candidate) => input.labels.includes(candidate.getAttribute('aria-label')));
+        if (boxes?.length !== 1) return false;
+        const box = boxes[0];
         box.setAttribute('data-cuhk-thinking-trigger', input.token);
         return true;
-    }, { display: model.display, token: triggerToken });
+    }, { labels: thinkingControlLabels(model), token: triggerToken });
     if (!markedTrigger) {
         await closeModelDialog(page);
         throw new CommandExecutionError(`${model.display} thinking selector disappeared before it could be opened.`);
@@ -317,24 +333,26 @@ export async function setThinking(page, model, value) {
         }
         await page.evaluate((input) => {
             const option = document.querySelector(`[data-cuhk-thinking-option=${JSON.stringify(input.token)}]`);
-            const box = Array.from(document.querySelectorAll('[role="dialog"] [role="combobox"]'))
-                .find(candidate => (candidate.getAttribute('aria-label') || '').includes(input.display));
+            const boxes = Array.from(document.querySelectorAll('[role="dialog"] [role="combobox"]'))
+                .filter(candidate => input.labels.includes(candidate.getAttribute('aria-label')));
+            const box = boxes.length === 1 ? boxes[0] : null;
             if (option && (box?.innerText || '').trim() !== input.label) {
                 option.focus();
                 option.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true, cancelable: true }));
             }
             document.querySelector(`[data-cuhk-thinking-option=${JSON.stringify(input.token)}]`)
                 ?.removeAttribute('data-cuhk-thinking-option');
-        }, { token: optionToken, display: model.display, label: selected.label }).catch(() => {});
+        }, { token: optionToken, labels: thinkingControlLabels(model), label: selected.label }).catch(() => {});
     }
     let confirmed = false;
     for (let attempt = 0; attempt < 20; attempt++) {
         confirmed = await page.evaluate((input) => {
             const dialog = document.querySelector('[role="dialog"]');
-            const box = dialog && Array.from(dialog.querySelectorAll('[role="combobox"]'))
-                .find((candidate) => (candidate.getAttribute('aria-label') || '').includes(input.display));
+            const boxes = dialog && Array.from(dialog.querySelectorAll('[role="combobox"]'))
+                .filter((candidate) => input.labels.includes(candidate.getAttribute('aria-label')));
+            const box = boxes?.length === 1 ? boxes[0] : null;
             return (box?.innerText || '').trim() === input.label;
-        }, { display: model.display, label: selected.label });
+        }, { labels: thinkingControlLabels(model), label: selected.label });
         if (confirmed) break;
         await page.wait({ time: 0.15 });
     }
