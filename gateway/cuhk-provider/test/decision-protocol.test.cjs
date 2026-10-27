@@ -99,6 +99,14 @@ test("agent decision blocked carries an explicit user handoff", () => {
   assert.equal(decision.answer, "请确认。");
 });
 
+test("a bare final is recognized only when runtime explicitly requests missing-answer recovery", () => {
+  const bare = '```cuhk-decision\n{"version":1,"decision":"final","reason":"goal_satisfied"}\n```';
+  assert.throws(() => parseAgentDecision(bare, tools), /requires final answer text/u);
+  const decision = parseAgentDecision(bare, tools, { allowMissingAnswer: true });
+  assert.equal(decision.kind, "final");
+  assert.equal(decision.answer, "");
+});
+
 test("malformed and invalid decisions fail before any tool execution", () => {
   assert.throws(
     () => parseAgentDecision('<agent_decision>{broken}</agent_decision>', tools),

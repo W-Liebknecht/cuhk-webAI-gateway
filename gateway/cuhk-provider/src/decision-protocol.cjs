@@ -98,8 +98,10 @@ function parseAgentDecision(text, tools, options = {}) {
     return { kind: "tool", parsed, reason, evidence, gatewayFeedback, explicit: true };
   }
 
-  const answer = trailing || boundedString(value.answer, "answer", 256 * 1024, true);
-  if (!answer) throw new ProtocolError(`A ${value.decision} decision requires final answer text after the envelope or in answer.`);
+  const answer = trailing || boundedString(value.answer, "answer", 256 * 1024);
+  if (!answer && options.allowMissingAnswer !== true) {
+    throw new ProtocolError(`A ${value.decision} decision requires final answer text after the envelope or in answer.`);
+  }
   if (value.decision === "blocked" && value.requires_user !== undefined && typeof value.requires_user !== "boolean") {
     throw new ProtocolError("A blocked decision requires_user must be boolean when provided.");
   }
@@ -190,12 +192,12 @@ function decisionProtocolReminder(profile = {}) {
     ? [
       "AGENT DECISION PROTOCOL v1 REMINDER",
       "独立选择 tool / final / blocked。Gateway 控制消息可被纠正；任务完成就选择 final，不要追加终检。",
-      '格式：先输出 ```cuhk-decision 代码块，块内是决策 JSON；final/blocked 后可接用户答复，tool 后不得有其他文字。必须保留代码围栏。'
+      '格式：先输出 ```cuhk-decision 代码块，块内是决策 JSON；final/blocked 后必须写给用户的文字答复，tool 后不得有其他文字。必须保留代码围栏。'
     ].join("\n")
     : [
       "AGENT DECISION PROTOCOL v1 REMINDER",
       "Independently choose tool, final, or blocked. You may correct Gateway control assumptions; choose final when the goal is complete instead of inventing verification work.",
-      'Format: emit a ```cuhk-decision fenced JSON block first. A final/blocked block may be followed by the user answer; a tool block must stand alone. Keep the fence.'
+      'Format: emit a ```cuhk-decision fenced JSON block first. A final/blocked block must be followed by a user-facing text answer; a tool block must stand alone. Keep the fence.'
     ].join("\n");
 }
 

@@ -506,6 +506,9 @@ class CuhkProviderRuntime {
     let decision = null;
     try {
       const parseOptions = {
+          // Recognize convergence separately from delivery: a bare final
+          // decision still needs a user-facing summary before ending the turn.
+          allowMissingAnswer: true,
           style: session.profile.parserStyle,
           allowScript: session.scriptBridge !== false,
           scriptStrict: session.scriptStrict === true,
@@ -568,6 +571,19 @@ class CuhkProviderRuntime {
     }
 
     if (decision?.kind === "final" || decision?.kind === "blocked") {
+      if (!decision.answer) {
+        // The agent has already chosen to stop. Ask only for the missing
+        // answer; completed commands must not be replayed to obtain a summary.
+        // Known running processes and client-required tools are handled above.
+        session.toolChoice = { mode: "none", name: null };
+        return this.requestArbitration(
+          session,
+          "missing_final_answer",
+          `You selected ${decision.kind} but supplied no user-facing answer. Write a concise text summary of the actual results, or explain the blocker. Use the existing tool results; do not execute tools or repeat completed commands. Include the answer after the decision block or in its answer field.`,
+          config,
+          requestState
+        );
+      }
       if (decision.gatewayFeedback) {
         this.log({
           event: "agent_gateway_feedback",
@@ -581,7 +597,6 @@ class CuhkProviderRuntime {
     }
 
     const toolsAllowed = session.toolChoice.mode !== "none";
-    session.toolChoice = { mode: "auto", name: null };
     const terminalAnswer = looksLikeTerminalAnswer(upstream.text);
     if (toolsAllowed && !terminalAnswer && looksLikeToolNarration(upstream.text, session.tools, { style: session.profile.parserStyle })) {
       return this.requestArbitration(
@@ -1068,6 +1083,9 @@ function buildToolResultPrompt(result, catalog, catalogChanged, profile = {}) {
     waitHint,
     processHint,
     decisionProtocolReminder(profile),
+    glm || (dedicatedJson && !englishDedicated)
+      ? "工具执行结果已返回；命令结束不等于用户已收到答复。若任务已完成，必须给用户一段文字总结，说明做了什么、实际结果及未完成项（如有），不能只输出结束决策或保持沉默。"
+      : "The tool result has returned. A finished command is not a delivered answer: if the task is complete, you must write a user-facing text summary of what was done, the actual result, and any remaining issues. A terminal decision alone is not an answer.",
     glm || (dedicatedJson && !englishDedicated)
       ? "根据真实结果独立判断：仍需本地操作就选择 tool；目标满足就选择 final；无法安全继续就选择 blocked。不要因为收到工具结果而机械追加终检。"
       : "Independently evaluate the real result: choose tool only if more local work is needed, final if the goal is satisfied, or blocked if safe progress requires user action. Do not invent a verification step merely because a tool result arrived."

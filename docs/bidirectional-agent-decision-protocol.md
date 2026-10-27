@@ -37,6 +37,8 @@ User-facing Markdown answer.
 
 `final` is the web Agent's explicit convergence decision. Text and code blocks after the envelope are delivery documentation and are never reinterpreted as executable calls. `gateway_feedback` lets the Agent record why a Gateway challenge was incorrect.
 
+A terminal decision must include a user-facing text answer after the envelope or in its `answer` field. After tool execution, that answer summarizes the actual outcome. If `final` or `blocked` omits the answer, Gateway requests it in the same web conversation with reason `missing_final_answer`, allowing only `final`/`blocked` and no additional tools. This uses the existing two-control-turn limit; repeated failure is reported as a protocol error rather than silently completing. Known running processes and client-required tool calls retain precedence over this summary recovery.
+
 ```cuhk-decision
 {"version":1,"decision":"blocked","reason":"...","requires_user":true,"evidence":[]}
 ```
@@ -85,3 +87,34 @@ Conversation ownership is a prerequisite for bidirectional checking. A new task 
 6. Disagreement without progress is bounded and terminates visibly.
 7. Legacy formats never take precedence over a valid explicit decision.
 8. No bootstrap or continuation is written until its conversation identity is verified.
+
+## Completion-summary regression
+
+Offline coverage includes a completed tool followed by a bare `final`, rejection
+of further tool execution during summary recovery, bounded missing answers, and
+precedence for running processes and client-required tools.
+
+With authenticated CUHK Chrome and no other task using the page:
+
+```powershell
+node gateway/cuhk-provider/test/completion-summary-online.cjs
+node bin/cuhk-gateway.cjs start
+node gateway/cuhk-provider/test/codex-svg-summary-online.cjs
+```
+
+The first test uses a real Codex CLI and browser transport, removing the first
+real final answer's body at the transport boundary to exercise summary recovery.
+It checks that a real summary reaches the CLI and the local command runs once.
+The second uses the normal Gateway launcher and the ten-diving-pigs SVG task
+with an explicit local-save requirement, without asking for a summary. It checks
+that an animated SVG file exists and a text answer arrives after the final tool.
+Both store reports and raw diagnostics only in ignored `gateway/runtime-state/`.
+
+Verified on 2026-10-27 with Codex CLI `0.164.0-alpha.11.1` and Qwen
+`qwen3.8-27b`: 184 offline tests passed; missing-answer injection recovered a real
+summary with exactly one local command (`xhigh`); the SVG test created ten pig
+instances with synchronized animations through native `apply_patch`, then
+delivered a textual summary (`low`). The SVG test requests a compact reusable
+shape and a local file so it exercises the CLI tool path rather than the web
+page's built-in canvas. Original configuration bytes were restored, with no
+active task or pending tool left after acceptance.

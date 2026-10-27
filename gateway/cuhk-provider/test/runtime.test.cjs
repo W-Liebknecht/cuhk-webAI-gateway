@@ -166,6 +166,53 @@ test("web agent can reject a mistaken Gateway control and insist on convergence"
   assert.match(transport.calls[1].prompt, /tool, final, blocked/u);
 });
 
+test("completed tool plus bare final requests a text summary without running more commands", async () => {
+  const bare = '<agent_decision>{"version":1,"decision":"final","reason":"goal_satisfied","answer":"   "}</agent_decision>';
+  const { instance, transport } = runtime([
+    '<tool_call>{"name":"echo","arguments":{"value":"a"}}</tool_call>',
+    bare,
+    '<agent_decision>{"version":1,"decision":"final","reason":"goal_satisfied"}</agent_decision>\nCompleted: echo returned a.'
+  ]);
+  const first = await instance.respond({ input: "echo once", tools: [echoTool] });
+  const final = await instance.respond({ input: [{ type: "function_call_output", call_id: first.output[0].call_id, output: "a" }] });
+  assert.equal(final.output[0].content[0].text, "Completed: echo returned a.");
+  assert.equal(transport.calls.length, 3);
+  assert.equal(transport.calls[2].isNew, false);
+  assert.match(transport.calls[2].prompt, /missing_final_answer/u);
+  assert.match(transport.calls[2].prompt, /"allowed_decisions":\["final","blocked"\]/u);
+  assert.match(transport.calls[2].prompt, /do not execute tools or repeat completed commands/u);
+  assert.equal(instance.activeSessionId, null);
+  assert.equal(instance.pendingCalls.size, 0);
+});
+
+test("summary recovery rejects another tool and stays bounded when the answer remains missing", async () => {
+  const bare = '<agent_decision>{"version":1,"decision":"final","reason":"goal_satisfied"}</agent_decision>';
+  const tool = '<tool_call>{"name":"echo","arguments":{"value":"a"}}</tool_call>';
+  const { instance, transport } = runtime([tool, bare, tool, bare]);
+  const first = await instance.respond({ input: "echo once", tools: [echoTool] });
+  await assert.rejects(instance.respond({ input: [{ type: "function_call_output", call_id: first.output[0].call_id, output: "a" }] }), /stopped after 2 control turns without progress/u);
+  assert.equal(transport.calls.length, 4);
+  assert.match(transport.calls[3].prompt, /"allowed_decisions":\["final","blocked"\]/u);
+  assert.equal(instance.activeSessionId, null);
+  assert.equal(instance.pendingCalls.size, 0);
+});
+
+test("bare final never hides a known running process or a required tool", async () => {
+  const bare = '<agent_decision>{"version":1,"decision":"final","reason":"goal_satisfied"}</agent_decision>';
+  const codeModeTools = [{ type: "namespace", name: "functions", tools: [{ type: "custom", name: "exec" }] }];
+  const { instance, transport } = runtime([bare]);
+  transport.onAsk = input => { instance.sessions.get(input.sessionId).runningProcesses.set(123, "long command"); };
+  const poll = await instance.respond({ input: "continue waiting", tools: codeModeTools });
+  assert.match(poll.output[0].input, /tools.write_stdin/u);
+  assert.match(poll.output[0].input, /"session_id":123/u);
+  assert.equal(transport.calls.length, 1);
+
+  const required = runtime([bare, '<tool_call>{"name":"echo","arguments":{"value":"a"}}</tool_call>']);
+  const result = await required.instance.respond({ input: "echo", tools: [echoTool], tool_choice: "required" });
+  assert.equal(result.output[0].type, "function_call");
+  assert.match(required.transport.calls[1].prompt, /"allowed_decisions":\["tool"\]/u);
+});
+
 test("duplicate action is challenged instead of executed twice and the agent may finalize", async () => {
   const toolDecision = '<agent_decision>{"version":1,"decision":"tool","name":"echo","arguments":{"value":"a"},"reason":"inspect"}</agent_decision>';
   const finalDecision = '<agent_decision>{"version":1,"decision":"final","reason":"goal_satisfied","evidence":["echo already returned a"],"gateway_feedback":"The duplicate was unnecessary."}</agent_decision>\nAlready complete.';
